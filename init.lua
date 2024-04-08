@@ -1,23 +1,12 @@
---gloabl options
---idea, chisel to make it so you dont have to craft stairs
---craft stone into bits.. than can then be used in a mneu to choose to place
---stairs,slabs,walls,etc
---maybe have the player place the full block in the item's inv and when it
---gets used it will instead place the block it's self or what other type they selected
---have the item update to show both the "chisel" and selected block
-
---FIXME: not sure why but, the held distance decreases when holding something
---TODO(prevent data loss): if object is not attached to anything add its node and set the data
+--DONE(prevent data loss): if object is not attached to anything add its node and set the data
 --will have to use mod storage
 --storage needs to store and objects
 --DONE: inv to storage {owner=POS,data=metadata}
---TODO: when dropping inv remove data from storage
---TODO: on restart if object is not attached load from storage and place it down in world with its metadata
+
+--TODO(audio and visuals): add some effects
+--FIXME(issue could be that obj pos is float): dettached should appear as close as possible to the last location
 
 local data_storage = minetest.get_mod_storage()
-
-local RayDistance = 1 -- Adjust as needed
-
 local obj = nil
 
 function Distance(x1, y1, z1, x2, y2, z2)
@@ -57,22 +46,56 @@ function Split(this_string, split)
   return new_word
 end
 
--- minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack, pointed_thing)
---   -- if placer:get_player_control()["sneak"] == true then
---     minetest.debug(minetest.colorize("yellow","howdy mate, ive got the shits"))
---   -- end
--- end)
--- local hand = minetest.registered_items[""]
+local function serializeMetaData(data)
+  local node_containers = {}
+  for i, v in pairs(data:to_table()) do
+    local found_container = {}
+    for container, container_items in pairs(v) do
+      local found_inv = {}
+      if type(container_items) == "table" then
+        for slot, item in pairs(container_items) do
+          table.insert(found_inv, slot, item:to_string())
+        end
+        found_container[container] = found_inv
+      else
+        found_container[container] = container_items
+      end
+    end
+    node_containers[i] = found_container
+  end
+  return minetest.serialize(node_containers)
+end
+
+local function deserializeMetaData(data)
+  local node_containers = {}
+  for i, v in pairs(data) do
+    local found_container = {}
+    for container, container_items in pairs(v) do
+      local found_inv = {}
+      if type(container_items) == "string" then
+        found_container[container] = container_items
+      else
+        for slot, item in pairs(container_items) do
+          found_inv[slot] = item
+        end
+        found_container[container] = found_inv
+      end
+    end
+    node_containers[i] = found_container
+  end
+  return node_containers
+end
 
 
 local handdef = minetest.registered_items[""]
 local on_place = handdef and handdef.on_place
 minetest.override_item("", {
   on_place = function(itemstack, placer, pointed_thing)
-    -- local range = minetest.registered_nodes[itemstack.name].range
-    -- minetest.debug(minetest.colorize("yellow", dump(itemstack:get_definition())))
+    local p_pos = placer:get_pos()
+    local n_pos = pointed_thing.under
+    -- if placer:get_player_control()["sneak"] == true and Distance(p_pos.x,p_pos.y,p_pos.z,n_pos.x,n_pos.y,n_pos.z) < 2 then
     if placer:get_player_control()["sneak"] == true then
-      minetest.debug(minetest.colorize("yellow", "howdy mate, ive got the shits"))
+      -- minetest.debug(minetest.colorize("yellow", "howdy mate, ive got the shits"))
 
       if obj ~= nil then
         local buildable = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
@@ -81,133 +104,81 @@ minetest.override_item("", {
           above = pointed_thing.under
         end
         local held_item_name = minetest.registered_nodes[obj:get_properties().wield_item].name
-        minetest.swap_node(above, { name = held_item_name })
+        local player_p = minetest.dir_to_fourdir(placer:get_look_dir())
+        minetest.swap_node(above, { name = held_item_name, param2 = player_p })
 
         local meta = minetest.get_meta(above)
-        -- local found_meta = data_storage:get_string(obj:get_properties().nametag)
-        local found_meta = data_storage:get_string(dump(obj))
+        local found_meta = data_storage:get_string(obj:get_luaentity().initial_pos)
 
-        -- minetest.debug(minetest.colorize("yellow",
-        --   "meta: \n" .. dump(meta:to_table())))
-
-        minetest.debug(minetest.colorize("cyan",
-          "not yet clean: \n" .. dump(minetest.deserialize(found_meta))))
-
-        local deserialized_inv = {}
-        for i, v in pairs(minetest.deserialize(found_meta)["inventory"]) do
-          -- minetest.debug(minetest.colorize("yellow",
-          --   "found: \n" .. i .. ":" .. dump(v)))
-          for section_index, section in pairs(v) do
-            local part = {}
-            -- minetest.debug(minetest.colorize("cyan",
-            --   "found: \n" .. section_index .. ":" .. dump(section)))
-            for slot, item in pairs(section) do
-              -- minetest.debug(minetest.colorize("pink",
-              --   "found: \n" .. slot .. ":" .. dump(minetest.deserialize(item))))
-              local item_string = minetest.deserialize(item)
-              table.insert(part, slot, item_string)
-              -- ItemStack(item_string)
-              --NOTE: i now have the item
+        local node_containers = {}
+        for i, v in pairs(minetest.deserialize(found_meta)["data"]) do
+          local found_container = {}
+          for container, container_items in pairs(v) do
+            local found_inv = {}
+            if type(container_items) == "string" then
+              found_container[container] = container_items
+            else
+              for slot, item in pairs(container_items) do
+                found_inv[slot] = item
+              end
+              found_container[container] = found_inv
             end
-            -- table.insert(deserialized_inv, { [section_index] = part })
-            deserialized_inv[section_index] = part
           end
+          node_containers[i] = found_container
         end
 
-        minetest.debug(minetest.colorize("gray",
-          "found: \n" .. dump(deserialized_inv)))
+        -- minetest.debug(minetest.colorize("gray",
+        --   "ok: \n" .. dump(node_containers)))
 
-        meta:from_table({
-          inventory = deserialized_inv,
-          fields = meta["fields"],
-        })
-
-        data_storage:set_string(dump(obj), "") --clear it
-
-        -- local deserialized_inv = {}
-        -- minetest.debug(minetest.colorize("magenta", dump(minetest.deserialize(found_meta)["inventory"])))
-        -- for i, v in pairs(minetest.deserialize(found_meta)) do
-        --   -- minetest.debug(minetest.colorize("cyan",
-        --   --   "found: \n" .. i))
-        --   local inv_section = {}
-        --   for slot, item in pairs(v) do
-        --     table.insert(inv_section,{[slot] = minetest.deserialize(dump(item))})
-        --     minetest.debug(minetest.colorize("cyan", type(item).." "..minetest.deserialize(dump(item))))
-        --     end
-        --   table.insert(deserialized_inv, inv_section)
-        -- end
-        -- minetest.debug(minetest.colorize("pink", dump(deserialized_inv)))
-
+        meta:from_table(node_containers)
+        data_storage:set_string(obj:get_luaentity().initial_pos, "") --clear it
         obj:remove()
         obj = nil
       else
         if obj == nil then
-          local meta = minetest.get_meta(pointed_thing.under)
-          -- minetest.debug(minetest.colorize("yellow", "\n" .. dump(meta:to_table())))
-          local count = 0
-          for _ in pairs(meta:to_table()["inventory"]) do count = count + 1 end
-          if count < 1 then
-            --DOES NOT HAVE AN INVENTORY
-            goto done
-          end
-          obj = minetest.add_entity(placer:get_pos(), "i_have_hands:held")
-          obj:set_attach(placer, "", { x = 0, y = 8.8, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 })
-          -- obj:set_attach(p, "", { x = 0, y = 10.8, z = 4.2 }, { x = 0, y = math.rad(90), z = 0 })
-          -- obj:set_attach(p, "", { x = 0, y = 10.5, z = -3 }, { x = 0, y = math.rad(90), z = 0 })
-
-          obj:set_properties({ wield_item = minetest.get_node(pointed_thing.under) })
-
-          --TODO: name the object with a uuid or by how many entries are in storage
-          --then on load have object search for their name in the storage and grab the data there to then place spawn it on the floor
-          --ON DETACH
-
-          -- local formatted_table = {}
-          -- minetest.debug(minetest.colorize("cyan",dump(obj:get_id())))
-          -- for i, v in pairs(meta:to_table()) do
-          --   minetest.debug(string.format("[%s] -> %s", i, v))
-          -- end
-
-          --TODO: i need to pass all of it not just inventory
-
-          minetest.debug(minetest.colorize("blue", "all: \n"..dump(meta:to_table())))
-
-          --all the invs with the node
-          local node_inventory = {}
-          for i, v in pairs(meta:to_table()["inventory"]) do
-            -- minetest.debug(string.format("[%s] -> %s",i,v))
-            -- minetest.debug(dump(v:to_table()))
-            --each inv container
-            -- minetest.debug(minetest.colorize("gold", i))
-            local found_inv = {}
-            -- table.insert(,"inventory",)
-            for slot, item in pairs(v) do
-              -- table.insert(found_inv, slot, minetest.serialize(item:to_table()))
-              table.insert(found_inv, slot, minetest.serialize(item:to_string()))
-              -- minetest.debug(minetest.colorize("red",dump(item:to_table())))
+          if stringContains(minetest.get_node(pointed_thing.under).name, "left") ~= nil or stringContains(minetest.get_node(pointed_thing.under).name, "right") ~= nil then
+          else
+            local meta = minetest.get_meta(pointed_thing.under)
+            local count = 0
+            for _ in pairs(meta:to_table()["inventory"]) do count = count + 1 end
+            if count < 1 then
+              goto done
             end
-            table.insert(node_inventory, { [i] = found_inv })
+            obj = minetest.add_entity(placer:get_pos(), "i_have_hands:held")
+            -- obj:set_attach(placer, "", { x = 0, y = 8.8, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 },placer:get_rotation(),true)
+            obj:set_attach(placer, "", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 },
+              placer:get_rotation(), true)
+            -- obj:set_attach(placer, "", { x = 0, y = 12, z = 6 }, { x = 0, y = math.rad(90), z = 0 },placer:get_rotation(),true)
+
+            obj:set_properties({ wield_item = minetest.get_node(pointed_thing.under) })
+            obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
+
+            -- minetest.debug(minetest.colorize("blue", "all: \n" .. dump(meta:to_table())))
+
+            local node_containers = {}
+            for i, v in pairs(meta:to_table()) do
+              local found_container = {}
+              for container, container_items in pairs(v) do
+                local found_inv = {}
+                if type(container_items) == "table" then
+                  for slot, item in pairs(container_items) do
+                    table.insert(found_inv, slot, item:to_string())
+                  end
+                  found_container[container] = found_inv
+                else
+                  found_container[container] = container_items
+                end
+              end
+              node_containers[i] = found_container
+            end
+            local full_data = { node = minetest.get_node(pointed_thing.under), data = node_containers }
+
+            local pos = vector.to_string(obj:get_pos())
+            data_storage:set_string(pos, minetest.serialize(full_data))
+            obj:get_luaentity().initial_pos = pos
+
+            minetest.remove_node(pointed_thing.under)
           end
-
-
-          minetest.debug(minetest.colorize("pink", dump(node_inventory)))
-          obj:set_properties({ nametag = placer:get_player_name() .. 0 })
-          -- data_storage:set_string(obj:get_properties().nametag, minetest.serialize({ inventory = node_inventory }))
-          data_storage:set_string(dump(obj), minetest.serialize({ inventory = node_inventory }))
-
-          -- local ok = minetest.write_json(dump(meta:to_table()))
-          -- minetest.debug(ok)
-
-          -- data_storage:set_string(obj:get_properties().nametag, ok)
-
-          -- data_storage:set_string(obj:get_properties().nametag, minetest.serialize(meta))
-
-          -- minetest.debug(minetest.parse_json(data_storage:get_string(obj:get_properties().nametag)))
-          -- minetest.debug(minetest.colorize("magenta",
-          --   "saving: \n" .. dump(meta_table)))
-
-          -- obj:get_luaentity().metadata = meta_table
-
-          minetest.remove_node(pointed_thing.under)
         end
       end
       ::done::
@@ -217,15 +188,6 @@ minetest.override_item("", {
   end,
 })
 
--- minetest.override_item("", {
---   on_place = function(itemstack, placer, pointed_thing)
---     if placer:get_player_control()["sneak"] == true then
---       minetest.debug(minetest.colorize("yellow","howdy mate, ive got the shits"))
---     end
---   end,
--- })
-
-
 minetest.register_entity("i_have_hands:held", {
   selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
   pointable = false,
@@ -234,30 +196,78 @@ minetest.register_entity("i_have_hands:held", {
   visual = "item",
   wield_item = "",
   -- visual_size = { x = 0.3, y = 0.3, z = 0.3 },
-  visual_size = { x = 0.3, y = 0.3, z = 0.3 },
-  _metadata = {},
-  on_activate = function(self, staticdata, dtime_s)
-    -- local meta = self._metadata
-    -- minetest.debug("obj_data: " .. dump(meta))
+  visual_size = { x = 0.35, y = 0.35, z = 0.35 },
+  _inicial_pos = "",
+  on_step = function(self, dtime, moveresult)
+    -- minetest.debug(minetest.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
+    if self.object:get_attach() == nil then
+      local pos = self.object:get_luaentity().initial_pos
+      -- if pos ~= nil then
+      -- local node_containers = {}
+      -- local data = data_storage:get_string(pos)
+      -- if data ~= "" then
+      --   minetest.debug("we got data")
+      --   for i, v in pairs(minetest.deserialize(data)) do
+      --     local found_container = {}
+      --     for container, container_items in pairs(v) do
+      --       local found_inv = {}
+      --       if type(container_items) == "string" then
+      --         found_container[container] = container_items
+      --       else
+      --         for slot, item in pairs(container_items) do
+      --           minetest.add_item(self.object:get_pos(), item)
+      --         end
+      --         found_container[container] = found_inv
+      --       end
+      --     end
+      --     node_containers[i] = found_container
+      --   end
+      --   minetest.debug(minetest.colorize("gray",
+      --     "ok: \n" .. dump(node_containers)))
+      -- end
+      -- end
+      self.object:remove()
+    end
   end,
-
 })
 
-minetest.register_on_joinplayer(function(ObjectRef, last_login)
-  --load detached invs when a player joins
-  -- minetest.debug(minetest.colorize("gold", dump(data_storage:to_table())))
-  -- if #data_storage:to_table() < 1 then
-  --   else
-  -- minetest.debug(minetest.colorize("gold", minetest.parse_json(dump(data_storage:to_table()))))
-  -- end
-  -- for x=0,#data_storage,1 do
-  --   minetest.debug(minetest.colorize("magenta",data_storage[x]))
-  -- end
-end)
+function findEmptySpace(pos, radius)
+  for x = -radius, radius do
+    for y = -1, 1 do -- Check one block above and below
+      for z = -radius, radius do
+        local checkPos = { x = pos.x + x, y = pos.y + y, z = pos.z + z }
+        local node = minetest.registered_nodes[minetest.get_node(pos).name]
+        if node.name == "" then
+          return checkPos -- Found empty space
+        end
+        if node.buildable_to == true then
+          return checkPos -- Found empty space
+        end
+      end
+    end
+  end
+  return nil -- No empty space found within the specified radius
+end
 
--- minetest.register_globalstep(function(dtime)
---   perform_raycast()
---   if cool_down > 0 then
---     cool_down = cool_down - 1
---   end
--- end)
+local ran_once = false
+minetest.register_globalstep(function(dtime)
+  if ran_once == false then
+    ran_once = true
+    -- minetest.debug("these are the keys: " .. dump(data_storage:get_keys()))
+    for i, v in pairs(data_storage:get_keys()) do
+      -- minetest.debug(minetest.colorize("cyan", dump(vector.from_string(v))))
+      local pos = vector.from_string(v)
+
+      pos = findEmptySpace(pos, 10)
+      -- minetest.debug("placed at: " .. vector.to_string(pos))
+      if pos == nil then
+      else
+        minetest.set_node(pos, minetest.deserialize(data_storage:get_string(v))["node"])
+        local meta = minetest.get_meta(pos)
+        meta:from_table(deserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+      end
+
+      data_storage:set_string(v, "")
+    end
+  end
+end)

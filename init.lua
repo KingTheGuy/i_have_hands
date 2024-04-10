@@ -3,6 +3,7 @@
 --storage needs to store and objects
 --DONE: inv to storage {owner=POS,data=metadata}
 --DONE: drop/place node when the player leaves
+--DONE: need to check if node has protection
 
 --TODO(audio:good enough): add some effects
 --FIXME(issue could be that obj pos is float): dettached should appear as close as possible to the last location
@@ -113,6 +114,26 @@ local function animatePlace()
   end
 end
 
+---@param pos table
+---@param user table
+---@return boolean
+local function checkProtection(pos, user)
+  local protected = minetest.is_protected(pos, user:get_player_name())
+  local owner = minetest.get_meta(pos):get_string("owner")
+  local player_name = user:get_player_name()
+  if owner ~= "" then
+    if owner ~=  player_name then
+      minetest.chat_send_player(player_name, minetest.colorize("pink","You are not the owner."))
+      return true
+    end
+  end
+  if protected then
+    minetest.chat_send_player(player_name, minetest.colorize("pink","This is protected"))
+    return true
+  end
+  return false
+end
+
 
 local handdef = minetest.registered_items[""]
 local on_place = handdef and handdef.on_place
@@ -121,18 +142,20 @@ minetest.override_item("", {
     local contains = false
     if placer:get_player_control()["sneak"] == true then
       -- minetest.debug(minetest.colorize("yellow", "howdy mate, ive got the shits"))
-      --FIXME: idea is check for attached children if the attached name is equal to the my held entity.. there is the object. and if not then lets pickup the node
       if #placer:get_children() > 0 then
         for index, obj in pairs(placer:get_children()) do
           -- minetest.debug(dump(obj:get_luaentity().name))
           -- minetest.debug("got something: "..obj.name)
           -- end
           -- for index, value in pairs(placer:get_children()) do
+          local above = pointed_thing.above
+          if checkProtection(above,placer) then
+            goto done
+          end
           if obj:get_luaentity().name == "i_have_hands:held" then
             contains = true
             -- minetest.debug("ok: "..type(held).."-"..held.."-")
             local buildable = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
-            local above = pointed_thing.above
             if buildable.buildable_to == true then
               above = pointed_thing.under
             end
@@ -145,7 +168,7 @@ minetest.override_item("", {
 
             -- table.insert(to_animate,{obj=obj,pos=above,frame=0})
             minetest.set_node(above, { name = held_item_name, param2 = player_p })
-            minetest.sound_play({ name = "i_have_hands_place_down_node" }, {pos = pointed_thing.above }, true)
+            minetest.sound_play({ name = "i_have_hands_place_down_node" }, { pos = pointed_thing.above }, true)
             local meta = minetest.get_meta(above)
 
             local node_containers = {}
@@ -173,6 +196,9 @@ minetest.override_item("", {
       if contains == false then
         if stringContains(minetest.get_node(pointed_thing.under).name, "left") ~= nil or stringContains(minetest.get_node(pointed_thing.under).name, "right") ~= nil or stringContains(minetest.get_node(pointed_thing.under).name, "furnace") ~= nil then
         else
+          if checkProtection(pointed_thing.under,placer) then
+            goto done
+          end
           local meta = minetest.get_meta(pointed_thing.under)
           local count = 0
           for _ in pairs(meta:to_table()["inventory"]) do count = count + 1 end
@@ -215,6 +241,7 @@ minetest.override_item("", {
           -- placer:get_meta():set_string("obj_obj",minetest.write_json(obj))
           minetest.remove_node(pointed_thing.under)
           minetest.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under }, true)
+          -- minetest.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under }, true)
         end
       end
     end
@@ -289,14 +316,14 @@ end
 
 local ran_once = false
 minetest.register_globalstep(function(dtime)
-    if ran_once == false then
-      ran_once = true
-      for i, v in pairs(data_storage:get_keys()) do
-        local pos = vector.from_string(v)
-        minetest.set_node(pos, minetest.deserialize(data_storage:get_string(v))["node"])
-        local meta = minetest.get_meta(pos)
-        meta:from_table(deserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
-        data_storage:set_string(v, "")
-      end
+  if ran_once == false then
+    ran_once = true
+    for i, v in pairs(data_storage:get_keys()) do
+      local pos = vector.from_string(v)
+      minetest.set_node(pos, minetest.deserialize(data_storage:get_string(v))["node"])
+      local meta = minetest.get_meta(pos)
+      meta:from_table(deserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+      data_storage:set_string(v, "")
     end
+  end
 end)

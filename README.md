@@ -11,6 +11,11 @@ _Hold `sneak` then `right_click(place button)` with an `empty_hand` to pickup/pl
 **NOTE**: does not work with *mineclonia*, they are completely overriding the *hand(easy fix on their end). **(does work with voxelibre/mineclone2)**
 
 ____
+_1.0.4 CHANGELOG:_
+
+- held storage containers can now be placed in water
+- voxelibre chests once again render in hand
+
 _1.0.3 CHANGELOG:_
 
 - added support for the drawers mod (Storage Drawers) [link](https://content.minetest.net/packages/LNJ/drawers/)

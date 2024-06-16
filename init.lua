@@ -243,7 +243,12 @@ local function hands(itemstack, placer, pointed_thing)
                 local try_inside = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
                 -- minetest.debug("buildabled? ",try_inside.buildable_to)
                 if minetest.get_node(above).name ~= "air" then
-                  return itemstack
+                  -- if minetest.get_node(above).name == "water" then
+                  if stringContains(minetest.get_node(above).name,"water") then
+                    --do nothing
+                  else
+                    return itemstack
+                  end
                 end
                 if #minetest.get_objects_inside_radius(above, 0.5) > 0 then
                   return itemstack
@@ -287,10 +292,10 @@ local function hands(itemstack, placer, pointed_thing)
             })
             obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
-            --WTF? why did i have this here? this was doing nothing..
-            -- if stringContains(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name].name, "mcl_chests") then
-            --   obj:set_properties({ wield_item = "mcl_chests:chest" })
-            -- end
+            -- this takes care of voxelibre chests
+            if stringContains(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name].name, "mcl_chests") then
+              obj:set_properties({ wield_item = "mcl_chests:chest" })
+            end
 
             -- minetest.debug(minetest.colorize("yellow",dump(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name])))
             -- minetest.debug(minetest.colorize("blue", "all: \n" .. dump(meta:to_table())))

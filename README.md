@@ -11,6 +11,11 @@ _Hold `sneak` then `right_click(place button)` with an `empty_hand` to pickup/pl
 **NOTE**: does not work with *mineclonia*, they are completely overriding the *hand(easy fix on their end). **(does work with voxelibre/mineclone2)**
 
 ____
+_1.0.5 CHANGELOG:_
+
+- added better support for pipeworks [link](https://content.minetest.net/packages/mt-mods/pipeworks/)
+  - on storage containers pickup/drop tubes will update
+
 _1.0.4 CHANGELOG:_
 
 - held storage containers can now be placed in water

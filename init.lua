@@ -11,12 +11,18 @@
 --DONE(audio:good enough,visual:good): add some effects
 --DONE: figure out double chests
 --DONE: add suppot for storage drawers mod
+--NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
 
 --FIXME(this is a bad thing, the worst): on drop the node will remove any node in its way
 --TODO: smoothen animation
 --TODO: better sound effects
 
 --TODO(next time): add text overlay
+
+--FIXME: the held inv should be dropped on death
+--TODO: make it so that when an inventory gets picked up a new, un fillable hot bar contaier gets created.
+--if the player moves to another hotbar.. drop the inventory
+--if when the inventory gets placed down, move over to the previous hotbar.
 --======--
 
 --invs to block
@@ -28,6 +34,8 @@ local RayDistance = 4;                     --this should be changed to the playe
 
 local data_storage = minetest.get_mod_storage()
 
+local to_animate = {}
+
 function Distance(x1, y1, z1, x2, y2, z2)
   local dx = x2 - x1
   local dy = y2 - y1
@@ -35,7 +43,7 @@ function Distance(x1, y1, z1, x2, y2, z2)
   return math.sqrt(dx * dx + dy * dy + dz * dz)
 end
 
-local function stringContains(str, find)
+function StringContains(str, find)
   str = string.upper(str)
   find = string.upper(find)
   local i, _ = string.find(str, find)
@@ -65,7 +73,7 @@ function Split(this_string, split)
   return new_word
 end
 
-local function serializeMetaData(data)
+function SerializeMetaData(data)
   local node_containers = {}
   for i, v in pairs(data:to_table()) do
     local found_container = {}
@@ -85,7 +93,7 @@ local function serializeMetaData(data)
   return minetest.serialize(node_containers)
 end
 
-local function deserializeMetaData(data)
+function DeserializeMetaData(data)
   local node_containers = {}
   for i, v in pairs(data) do
     local found_container = {}
@@ -105,6 +113,12 @@ local function deserializeMetaData(data)
   return node_containers
 end
 
+local function placeDown( placer, rot, obj, above, frame, held_item_name )
+  table.insert(to_animate,
+    { player = placer, rot = rot, obj = obj, pos = above, frame = frame, item = held_item_name })
+end
+
+
 local function quantize_direction(yaw)
   local angle = math.deg(yaw) % 360 -- Convert yaw to degrees and get its modulo 360
   if angle < 45 or angle >= 315 then
@@ -120,7 +134,6 @@ end
 
 --object, pos, frame
 --not in use atm
-local to_animate = {}
 local function animatePlace()
   for i, v in pairs(to_animate) do
     if v.frame == 0 then
@@ -166,9 +179,14 @@ local function animatePlace()
       end
       meta:from_table(node_containers)
 
-      --this adds support for the storage_drawers mod
+      --NOTE(COMPAT): this adds support for the storage_drawers mod
       if minetest.get_modpath("drawers") and drawers then
         drawers.spawn_visuals(v.pos)
+      end
+      --NOTE(COMPAT): pipeworks update pipe, on place down
+      if minetest.get_modpath("pipeworks") and pipeworks then
+        pipeworks.scan_for_tube_objects(v.pos)
+        pipeworks.scan_for_pipe_objects(v.pos)
       end
 
     end
@@ -212,7 +230,7 @@ end
 
 local function isBlacklisted(pos)
   for _, v in ipairs(blacklist) do
-    if stringContains(minetest.get_node(pos).name, v) then
+    if StringContains(minetest.get_node(pos).name, v) then
       return true
     end
   end
@@ -244,7 +262,7 @@ local function hands(itemstack, placer, pointed_thing)
                 -- minetest.debug("buildabled? ",try_inside.buildable_to)
                 if minetest.get_node(above).name ~= "air" then
                   -- if minetest.get_node(above).name == "water" then
-                  if stringContains(minetest.get_node(above).name,"water") then
+                  if StringContains(minetest.get_node(above).name,"water") then
                     --do nothing
                   else
                     return itemstack
@@ -262,9 +280,11 @@ local function hands(itemstack, placer, pointed_thing)
                 -- local player_p = minetest.dir_to_fourdir(placer:get_look_dir())
                 -- obj:set_pos(above)
                 -- animatePlace(obj,above)
+
+                -- table.insert(to_animate,
+                --   { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
                 local rot = quantize_direction(placer:get_look_horizontal())
-                table.insert(to_animate,
-                  { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
+                placeDown( placer, rot, obj, above, 0, held_item_name )
               end
             end
           end
@@ -286,14 +306,16 @@ local function hands(itemstack, placer, pointed_thing)
             end
             local obj = minetest.add_entity(placer:get_pos(), "i_have_hands:held")
             obj:set_attach(placer, "", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+            --NOTE: attaching to the head just does not look very good, so lets not do that.
+            -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
             obj:set_properties({
               wield_item = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
                   .name
             })
             obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
-            -- this takes care of voxelibre chests
-            if stringContains(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name].name, "mcl_chests") then
+            --NOTE(COMPAT): this takes care of voxelibre chests
+            if StringContains(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name].name, "mcl_chests") then
               obj:set_properties({ wield_item = "mcl_chests:chest" })
             end
 
@@ -323,6 +345,12 @@ local function hands(itemstack, placer, pointed_thing)
             -- placer:get_meta():set_string("obj_obj",minetest.write_json(obj))
             minetest.remove_node(pointed_thing.under)
             minetest.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under }, true)
+
+            --NOTE(COMPAT): pipeworks update pipe, on pickup
+            if minetest.get_modpath("pipeworks") and pipeworks then
+              pipeworks.scan_for_tube_objects(pointed_thing.under)
+              pipeworks.scan_for_pipe_objects(pointed_thing.under)
+            end
 
             -- minetest.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
           end
@@ -368,7 +396,7 @@ minetest.register_entity("i_have_hands:held", {
           if v == pos then
             minetest.set_node(vector.from_string(pos), minetest.deserialize(data_storage:get_string(v))["node"])
             local meta = minetest.get_meta(vector.from_string(pos))
-            meta:from_table(deserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+            meta:from_table(DeserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
             data_storage:set_string(v, "")
           end
         end
@@ -491,8 +519,13 @@ minetest.register_globalstep(function(dtime)
       local pos = vector.from_string(v)
       minetest.set_node(pos, minetest.deserialize(data_storage:get_string(v))["node"])
       local meta = minetest.get_meta(pos)
-      meta:from_table(deserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+      meta:from_table(DeserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
       data_storage:set_string(v, "")
     end
   end
 end)
+
+
+-- minetest.register_on_dieplayer(function(ObjectRef, reason)
+
+-- end)

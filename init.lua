@@ -1,30 +1,3 @@
---DONE(prevent data loss): if object is not attached to anything add its node and set the data
---will have to use mod storage
---storage needs to store and objects
---DONE: inv to storage {owner=POS,data=metadata}
---DONE: drop/place node when the player leaves
---DONE: need to check if node has protection
---DONE: placing is eating blocks at times, need to check if node is empty
---DONE: view in first person
---DONE(issue could be that obj pos is float): dettached should appear as close as possible to the last location
---DONE(kinda): add a fall back a node's visual is nil
---DONE(audio:good enough,visual:good): add some effects
---DONE: figure out double chests
---DONE: add suppot for storage drawers mod
---NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
-
---FIXME(this is a bad thing, the worst): on drop the node will remove any node in its way
---TODO: smoothen animation
---TODO: better sound effects
-
---TODO(next time): add text overlay
-
---FIXME: the held inv should be dropped on death
---TODO: make it so that when an inventory gets picked up a new, un fillable hot bar contaier gets created.
---if the player moves to another hotbar.. drop the inventory
---if when the inventory gets placed down, move over to the previous hotbar.
---======--
-
 --invs to block
 local blacklist = { "furnace", "shulker" } --if the name contains any of
 --moving a hot furnace with just your hands.. i don't this so buddy
@@ -32,8 +5,14 @@ local RayDistance = 4;                     --this should be changed to the playe
 
 -- local has_hud = {}
 
-local data_storage = minetest.get_mod_storage()
+local data_storage = core.get_mod_storage()
 
+---@class Animate
+---@field player table The damn player
+---@field rotation integer Not sure if this is vector
+---@field object table Is this a table?
+---@field frame integer Not sure if frame is the correct term here
+---@field item_name string This is probabliy the only thing that is correct
 local to_animate = {}
 
 function Distance(x1, y1, z1, x2, y2, z2)
@@ -90,7 +69,7 @@ function SerializeMetaData(data)
     end
     node_containers[i] = found_container
   end
-  return minetest.serialize(node_containers)
+  return core.serialize(node_containers)
 end
 
 function DeserializeMetaData(data)
@@ -113,7 +92,7 @@ function DeserializeMetaData(data)
   return node_containers
 end
 
-local function placeDown( placer, rot, obj, above, frame, held_item_name )
+local function placeDown(placer, rot, obj, above, frame, held_item_name)
   table.insert(to_animate,
     { player = placer, rot = rot, obj = obj, pos = above, frame = frame, item = held_item_name })
 end
@@ -144,7 +123,7 @@ local function animatePlace()
       v.obj:set_properties({ visual_size = { x = 0.5, y = 0.5, z = 0.5 } })
       v.obj:set_pos(v.pos)
       v.obj:set_properties({ pointable = true })
-      minetest.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = 0.7 }, true)
+      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = 0.7 }, true)
     end
     if v.frame == 1 then
       local obj_rot = v.obj:get_rotation()
@@ -157,12 +136,12 @@ local function animatePlace()
     if v.frame == 1 then
       local found_meta = data_storage:get_string(v.obj:get_luaentity().initial_pos)
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
-      minetest.set_node(v.pos, { name = v.item, param2 = minetest.dir_to_fourdir(minetest.yaw_to_dir(v.rot)) })
-      minetest.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos }, true)
-      local meta = minetest.get_meta(v.pos)
+      core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
+      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos }, true)
+      local meta = core.get_meta(v.pos)
 
       local node_containers = {}
-      for i, v in pairs(minetest.deserialize(found_meta)["data"]) do
+      for i, v in pairs(core.deserialize(found_meta)["data"]) do
         local found_container = {}
         for container, container_items in pairs(v) do
           local found_inv = {}
@@ -180,15 +159,14 @@ local function animatePlace()
       meta:from_table(node_containers)
 
       --NOTE(COMPAT): this adds support for the storage_drawers mod
-      if minetest.get_modpath("drawers") and drawers then
+      if core.get_modpath("drawers") and drawers then
         drawers.spawn_visuals(v.pos)
       end
       --NOTE(COMPAT): pipeworks update pipe, on place down
-      if minetest.get_modpath("pipeworks") and pipeworks then
+      if core.get_modpath("pipeworks") and pipeworks then
         pipeworks.scan_for_tube_objects(v.pos)
         pipeworks.scan_for_pipe_objects(v.pos)
       end
-
     end
     v.frame = v.frame + 1
     if v.frame >= 6 then
@@ -203,17 +181,17 @@ end
 ---@param user table
 ---@return boolean
 local function checkProtection(pos, user)
-  local protected = minetest.is_protected(pos, user:get_player_name())
-  local owner = minetest.get_meta(pos):get_string("owner")
+  local protected = core.is_protected(pos, user:get_player_name())
+  local owner = core.get_meta(pos):get_string("owner")
   local player_name = user:get_player_name()
   if owner ~= "" then
     if owner ~= player_name then
-      minetest.chat_send_player(player_name, minetest.colorize("pink", "You are not the owner."))
+      core.chat_send_player(player_name, core.colorize("pink", "You are not the owner."))
       return true
     end
   end
   if protected then
-    minetest.chat_send_player(player_name, minetest.colorize("pink", "This is protected"))
+    core.chat_send_player(player_name, core.colorize("pink", "This is protected"))
     return true
   end
   return false
@@ -230,136 +208,162 @@ end
 
 local function isBlacklisted(pos)
   for _, v in ipairs(blacklist) do
-    if StringContains(minetest.get_node(pos).name, v) then
+    if StringContains(core.get_node(pos).name, v) then
       return true
     end
   end
   return false
 end
 
-local handdef = minetest.registered_items[""]
+local function find_empty_position(pos, radius)
+    local x, y, z = pos.x, pos.y, pos.z
+    local found = false
+    local empty_pos = nil
+
+    for r = 0, radius do
+        for a = 0, 360, 10 do
+            local dx = math.floor(r * math.cos(math.rad(a)))
+            local dz = math.floor(r * math.sin(math.rad(a)))
+            local nx, nz = x + dx, z + dz
+            local ny = y
+
+            while ny < 100 and not found do
+                local node = minetest.get_node({x = nx, y = ny, z = nz})
+                if node.name == "air" then
+                    empty_pos = {x = nx, y = ny, z = nz}
+                    found = true
+                end
+                ny = ny + 1
+            end
+        end
+    end
+
+    return empty_pos
+end
+
+local handdef = core.registered_items[""]
 local on_place = handdef and handdef.on_place
 
 local function hands(itemstack, placer, pointed_thing)
-      local contains = false
-      if placer:get_player_control()["sneak"] == true then
-        -- minetest.debug("what is this?",minetest.get_node(pointed_thing.under).name)
-        -- minetest.debug(string.format("location: %s", dump(minetest.get_modpath("drawers"))))
-        -- minetest.debug(minetest.colorize("yellow", "howdy mate, ive got the shits"))
-        if #placer:get_children() > 0 then --this is getting all connect objects
-          for index, obj in pairs(placer:get_children()) do
-            -- minetest.debug(dump(obj:get_luaentity().name))
-            -- minetest.debug("got something: "..obj.name)
-            -- end
-            -- for index, value in pairs(placer:get_children()) do
-            local above = pointed_thing.above
-            -- minetest.debug("node: "..minetest.get_node(above).name)
-            if checkProtection(above, placer) == false then
-              if obj:get_luaentity().name == "i_have_hands:held" then
-                contains = true
-                -- minetest.debug("ok: "..type(held).."-"..held.."-")
-                local try_inside = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
-                -- minetest.debug("buildabled? ",try_inside.buildable_to)
-                if minetest.get_node(above).name ~= "air" then
-                  -- if minetest.get_node(above).name == "water" then
-                  if StringContains(minetest.get_node(above).name,"water") then
-                    --do nothing
-                  else
-                    return itemstack
-                  end
-                end
-                if #minetest.get_objects_inside_radius(above, 0.5) > 0 then
-                  return itemstack
-                end
-                if try_inside.buildable_to == true then
-                  above = pointed_thing.under
-                end
-
-
-                local held_item_name = minetest.registered_nodes[obj:get_properties().wield_item].name
-                -- local player_p = minetest.dir_to_fourdir(placer:get_look_dir())
-                -- obj:set_pos(above)
-                -- animatePlace(obj,above)
-
-                -- table.insert(to_animate,
-                --   { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
-                local rot = quantize_direction(placer:get_look_horizontal())
-                placeDown( placer, rot, obj, above, 0, held_item_name )
+  local contains = false
+  if placer:get_player_control()["sneak"] == true then
+    -- core.debug("what is this?",core.get_node(pointed_thing.under).name)
+    -- core.debug(string.format("location: %s", dump(core.get_modpath("drawers"))))
+    -- core.debug(core.colorize("yellow", "howdy mate, ive got the shits"))
+    if #placer:get_children() > 0 then --this is getting all connect objects
+      for index, obj in pairs(placer:get_children()) do
+        -- core.debug(dump(obj:get_luaentity().name))
+        -- core.debug("got something: "..obj.name)
+        -- end
+        -- for index, value in pairs(placer:get_children()) do
+        local above = pointed_thing.above
+        -- core.debug("node: "..core.get_node(above).name)
+        if checkProtection(above, placer) == false then
+          if obj:get_luaentity().name == "i_have_hands:held" then
+            contains = true
+            -- core.debug("ok: "..type(held).."-"..held.."-")
+            local try_inside = core.registered_nodes[core.get_node(pointed_thing.under).name]
+            -- core.debug("buildabled? ",try_inside.buildable_to)
+            if core.get_node(above).name ~= "air" then
+              -- if core.get_node(above).name == "water" then
+              if StringContains(core.get_node(above).name, "water") then
+                --do nothing
+              else
+                return itemstack
               end
             end
-          end
-        end
-
-        if contains == false then
-          local is_blacklisted = false
-
-          if isBlacklisted(pointed_thing.under) then
-            is_blacklisted = true
-          end
-          if is_blacklisted == false then
-            if checkProtection(pointed_thing.under, placer) then
+            if #core.get_objects_inside_radius(above, 0.5) > 0 then
               return itemstack
             end
-            local meta = minetest.get_meta(pointed_thing.under)
-            if isInventory(meta) == false then
-              return itemstack
-            end
-            local obj = minetest.add_entity(placer:get_pos(), "i_have_hands:held")
-            obj:set_attach(placer, "", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
-            --NOTE: attaching to the head just does not look very good, so lets not do that.
-            -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
-            obj:set_properties({
-              wield_item = minetest.registered_nodes[minetest.get_node(pointed_thing.under).name]
-                  .name
-            })
-            obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
-
-            --NOTE(COMPAT): this takes care of voxelibre chests
-            if StringContains(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name].name, "mcl_chests") then
-              obj:set_properties({ wield_item = "mcl_chests:chest" })
+            if try_inside.buildable_to == true then
+              above = pointed_thing.under
             end
 
-            -- minetest.debug(minetest.colorize("yellow",dump(minetest.registered_nodes[minetest.get_node(pointed_thing.under).name])))
-            -- minetest.debug(minetest.colorize("blue", "all: \n" .. dump(meta:to_table())))
-            local node_containers = {}
-            for i, v in pairs(meta:to_table()) do
-              local found_container = {}
-              for container, container_items in pairs(v) do
-                local found_inv = {}
-                if type(container_items) == "table" then
-                  for slot, item in pairs(container_items) do
-                    table.insert(found_inv, slot, item:to_string())
-                  end
-                  found_container[container] = found_inv
-                else
-                  found_container[container] = container_items
-                end
-              end
-              node_containers[i] = found_container
-            end
-            local full_data = { node = minetest.get_node(pointed_thing.under), data = node_containers }
 
-            local pos = vector.to_string(obj:get_pos())
-            data_storage:set_string(pos, minetest.serialize(full_data))
-            obj:get_luaentity().initial_pos = pos
-            -- placer:get_meta():set_string("obj_obj",minetest.write_json(obj))
-            minetest.remove_node(pointed_thing.under)
-            minetest.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under }, true)
+            local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+            -- local player_p = core.dir_to_fourdir(placer:get_look_dir())
+            -- obj:set_pos(above)
+            -- animatePlace(obj,above)
 
-            --NOTE(COMPAT): pipeworks update pipe, on pickup
-            if minetest.get_modpath("pipeworks") and pipeworks then
-              pipeworks.scan_for_tube_objects(pointed_thing.under)
-              pipeworks.scan_for_pipe_objects(pointed_thing.under)
-            end
-
-            -- minetest.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
+            -- table.insert(to_animate,
+            --   { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
+            local rot = quantize_direction(placer:get_look_horizontal())
+            placeDown(placer, rot, obj, above, 0, held_item_name)
           end
         end
       end
-      --you know, return itemstack
+    end
+
+    if contains == false then
+      local is_blacklisted = false
+
+      if isBlacklisted(pointed_thing.under) then
+        is_blacklisted = true
+      end
+      if is_blacklisted == false then
+        if checkProtection(pointed_thing.under, placer) then
+          return itemstack
+        end
+        local meta = core.get_meta(pointed_thing.under)
+        if isInventory(meta) == false then
+          return itemstack
+        end
+        local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
+        obj:set_attach(placer, "", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        --NOTE: attaching to the head just does not look very good, so lets not do that.
+        -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        obj:set_properties({
+          wield_item = core.registered_nodes[core.get_node(pointed_thing.under).name]
+              .name
+        })
+        obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
+
+        --NOTE(COMPAT): this takes care of voxelibre chests
+        if StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
+          obj:set_properties({ wield_item = "mcl_chests:chest" })
+        end
+
+        -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
+        -- core.debug(core.colorize("blue", "all: \n" .. dump(meta:to_table())))
+        local node_containers = {}
+        for i, v in pairs(meta:to_table()) do
+          local found_container = {}
+          for container, container_items in pairs(v) do
+            local found_inv = {}
+            if type(container_items) == "table" then
+              for slot, item in pairs(container_items) do
+                table.insert(found_inv, slot, item:to_string())
+              end
+              found_container[container] = found_inv
+            else
+              found_container[container] = container_items
+            end
+          end
+          node_containers[i] = found_container
+        end
+        local full_data = { node = core.get_node(pointed_thing.under), data = node_containers }
+
+        local pos = vector.to_string(obj:get_pos())
+        data_storage:set_string(pos, core.serialize(full_data))
+        obj:get_luaentity().initial_pos = pos
+        -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
+        core.remove_node(pointed_thing.under)
+        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under }, true)
+
+        --NOTE(COMPAT): pipeworks update pipe, on pickup
+        if core.get_modpath("pipeworks") and pipeworks then
+          pipeworks.scan_for_tube_objects(pointed_thing.under)
+          pipeworks.scan_for_pipe_objects(pointed_thing.under)
+        end
+
+        -- core.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
+      end
+    end
+  end
+  --you know, return itemstack
 end
 
-minetest.override_item("", {
+core.override_item("", {
   on_place = function(itemstack, placer, pointed_thing)
     itemstack = on_place(itemstack, placer, pointed_thing)
     hands(itemstack, placer, pointed_thing)
@@ -370,7 +374,7 @@ minetest.override_item("", {
   -- end
 })
 
-minetest.register_entity("i_have_hands:held", {
+core.register_entity("i_have_hands:held", {
   selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
   pointable = false,
   physical = false,
@@ -380,13 +384,13 @@ minetest.register_entity("i_have_hands:held", {
   visual_size = { x = 0.35, y = 0.35, z = 0.35 },
   _initial_pos = "",
   on_step = function(self, dtime, moveresult)
-    -- minetest.debug(minetest.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
+    -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
 
     if self.object:get_attach() == nil then
       local contains = false
       for i, v in pairs(to_animate) do
         if v.obj == self.object then
-          -- minetest.debug("should not delete this yet")
+          -- core.debug("should not delete this yet")
           contains = true
         end
       end
@@ -394,9 +398,9 @@ minetest.register_entity("i_have_hands:held", {
         local pos = self.object:get_luaentity().initial_pos
         for i, v in pairs(data_storage:get_keys()) do
           if v == pos then
-            minetest.set_node(vector.from_string(pos), minetest.deserialize(data_storage:get_string(v))["node"])
-            local meta = minetest.get_meta(vector.from_string(pos))
-            meta:from_table(DeserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+            core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
+            local meta = core.get_meta(vector.from_string(pos))
+            meta:from_table(DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
             data_storage:set_string(v, "")
           end
         end
@@ -426,10 +430,10 @@ local function findNearestPosition(pos)
     for dy = -search_radius, search_radius do
       for dz = -search_radius, search_radius do
         local new_pos = vector.add(pos, { x = dx, y = dy, z = dz })
-        local node = minetest.get_node(new_pos)
-        local node_above = minetest.get_node(vector.add(new_pos, { x = 0, y = 1, z = 0 }))
+        local node = core.get_node(new_pos)
+        local node_above = core.get_node(vector.add(new_pos, { x = 0, y = 1, z = 0 }))
         if node_above.name == "air" then
-          -- minetest.debug(string.format("%s:%s:%s",node.name,node_below.name,node_below_below.name))
+          -- core.debug(string.format("%s:%s:%s",node.name,node_below.name,node_below_below.name))
           local distance = vector.distance(pos, new_pos)
           if distance < min_distance then
             min_distance = distance
@@ -443,9 +447,33 @@ local function findNearestPosition(pos)
   return nearest_pos
 end
 
+local player_hud_id = {}
+
+local function getPlayerFromPlayerHuds(player_name)
+  -- core.debug("player_huds are " .. #player_hud_id .. " in length.")
+  for _, ph in ipairs(player_hud_id) do
+    if ph.player_name == player_name then
+      if ph.player_hud == nil then return nil end
+      return ph.player_hud
+    end
+  end
+end
+
+local function removePlayerHud(player)
+  local hud_id = getPlayerFromPlayerHuds(player:get_player_name())
+  if hud_id ~= nil then
+    player:hud_remove(hud_id)
+    for index, ph in ipairs(player_hud_id) do
+      if ph.player_name == player:get_player_name() then
+        table.remove(player_hud_id,index)
+      end
+    end
+  end
+end
+
 --FIXME: only raycast if the player's "hand" is empty (no need to cast when the player cant event pick it up to start with)
 local function raycast()
-  local player = minetest.get_connected_players()
+  local player = core.get_connected_players()
   if #player > 0 then
     for _, p in ipairs(player) do
       local eye_height = p:get_properties().eye_height
@@ -453,9 +481,10 @@ local function raycast()
       local pos = p:get_pos():add(player_look_dir)
       local player_pos = { x = pos.x, y = pos.y + eye_height, z = pos.z }
       local new_pos = p:get_look_dir():multiply(RayDistance):add(player_pos)
-      local raycast_result = minetest.raycast(player_pos, new_pos, false, false):next()
-      -- minetest.debug(string.format("who this? %s", p:get_player_name()))
-      -- find the player.. if not then add the player. 
+      local raycast_result = core.raycast(player_pos, new_pos, false, false):next()
+      -- core.debug("the distance is.. "..vector.distance(pos,new_pos))
+      -- core.debug(string.format("who this? %s", p:get_player_name()))
+      -- find the player.. if not then add the player.
       -- if the player is no raycast remove the player
       -- if raycast is not an inventory remove the player
       --[[
@@ -475,57 +504,105 @@ local function raycast()
       end
       --]]
 
+      local hud_id = nil; --FIXME this need to be added to list of all player HUDS
       if raycast_result then
-        local pointed_node = minetest.get_node(raycast_result.under)
-        if isInventory(minetest.get_meta(raycast_result.under)) then
-          if isBlacklisted(raycast_result.under) == false then
-            minetest.debug("crouch & right-click to lift this..")
-            --TODO: i need to store each player's hud id at runtime
+        local pointed_node = core.get_node(raycast_result.under)
+        if isBlacklisted(raycast_result.under) then
+          removePlayerHud(p)
+          return
+        end
+        if p:get_wielded_item():get_name() ~= "" then
+          removePlayerHud(p)
+          return
+        end
+        if isInventory(core.get_meta(raycast_result.under)) then
+          -- if isBlacklisted(raycast_result.under) == false then
+          -- core.debug("crouch & right-click to lift this..")
+          --TODO: i need to store each player's hud id at runtime
+          -- local hud_id = p:hud_add({
+          hud_id = getPlayerFromPlayerHuds(p:get_player_name())
+          -- core.debug("so wtf is this then? " .. tostring(hud_id))
+          if hud_id == nil then
             hud_id = p:hud_add({
               hud_elem_type = "text",
-              position = {x=0.5, y=0.5},
+              position = { x = 0.5, y = 0.6 },
               direction = 0,
               name = "ihh",
-              scale = {x=1,y=1},
-              text = "crouch & interact to lift this",
+              scale = { x = 1, y = 1 },
+              -- text = "crouch & interact to lift this",
+              text = "Carry: crouch & interact",
               number = "0xFFFFFF",
-              z_index= 0,
-
+              z_index = 0,
             })
+            local this_players_hud = { player_name = p:get_player_name(), player_hud = hud_id }
+            table.insert(player_hud_id, this_players_hud)
           end
         else
-          -- if hud_id ~= nil then
-          --   p:remove_hud(hud_id)
-          -- end
+          removePlayerHud(p)
         end
-        -- minetest.debug(string.format("what is this?",minetest.registered_nodes[pointed_node].name))
+        -- core.debug(string.format("what is this?",core.registered_nodes[pointed_node].name))
+        else
+        removePlayerHud(p)
       end
+      -- if hud_id ~= nil then
+      --   p:hud_remove(hud_id)
+      -- end
     end
   end
 end
 
+local function handNotEmpty()
+  local player = core.get_connected_players()
+  if #player > 0 then
+    for _, p in ipairs(player) do
+        if p:get_wielded_item():get_name() ~= "" then
+          if #p:get_children() > 0 then --this is getting all connect objects
+            for index, obj in pairs(p:get_children()) do
+              if obj:get_luaentity().name == "i_have_hands:held" then
+                local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+                placeDown(p, 0, obj, find_empty_position(p:get_pos(),10), 0, held_item_name)
+              end
+            end
+          end
+        end
+    end
+  end
+end
+
+
 local ran_once = false
 local tick = 0
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
   -- raycast()
   tick = tick + 0.5
   if tick > 2 then
     animatePlace()
+    raycast()
+    handNotEmpty()
     tick = 0
   end
   if ran_once == false then
     ran_once = true
     for i, v in pairs(data_storage:get_keys()) do
       local pos = vector.from_string(v)
-      minetest.set_node(pos, minetest.deserialize(data_storage:get_string(v))["node"])
-      local meta = minetest.get_meta(pos)
-      meta:from_table(DeserializeMetaData(minetest.deserialize(data_storage:get_string(v))["data"]))
+      core.set_node(pos, core.deserialize(data_storage:get_string(v))["node"])
+      local meta = core.get_meta(pos)
+      meta:from_table(DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
       data_storage:set_string(v, "")
     end
   end
 end)
 
 
--- minetest.register_on_dieplayer(function(ObjectRef, reason)
+core.register_on_dieplayer(function(ObjectRef, reason)
+  if #ObjectRef:get_children() > 0 then --this is getting all connect objects
+    for index, obj in pairs(ObjectRef:get_children()) do
+      if obj:get_luaentity().name == "i_have_hands:held" then
+        local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+        placeDown(ObjectRef, 0, obj, find_empty_position(ObjectRef:get_pos(),10), 0, held_item_name)
+      end
+    end
+  end
+  core.debug("what death? ".. ObjectRef:get_player_name())
 
--- end)
+end)

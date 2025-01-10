@@ -1,0 +1,9 @@
+{
+    "diagnostics.globals": [
+        "minetest",
+        "vector",
+        "drawers",
+        "pipeworks",
+        "core"
+    ]
+}

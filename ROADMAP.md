@@ -6,7 +6,7 @@ Make it nice.
 
 ## DOING:
 
-- [ ] prevent switching hotbar slot
+- [ ] MCL support for picking up double chests
 
 --NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
 
@@ -17,13 +17,13 @@ Make it nice.
   > /home/surv/.minetest/mods/i_have_hands/init.lua:266: in function 'hands'
   > /home/surv/.minetest/mods/i_have_hands/init.lua:373: in function </home/surv/.minetest/mods/i_have_hands/init.lua:371>
 
+## BACKLOG:
+
+- [ ] prevent switching hotbar slot
 - [ ] prevent slot from being filled.
       make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
       if the player moves to another hotbar.. drop the inventory
       if when the inventory gets placed down, move over to the previous hotbar.
-
-## BACKLOG:
-
 - [ ] somehow let the player know if a mod is interfering with this mod or just say not its not compatible
 - [ ] smoother animations
 - [ ] better sound effects

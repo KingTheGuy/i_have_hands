@@ -1,9 +1,9 @@
---invs to block
-local blacklist = { "furnace", "shulker" } --if the name contains any of
+dofile(minetest.get_modpath("i_have_hands") .. "/utils.lua")
+
 --moving a hot furnace with just your hands.. i don't this so buddy
 local RayDistance = 4;                     --this should be changed to the players reach
-
--- local has_hud = {}
+--invs to block
+local blacklist = { "furnace", "shulker" } --if the name contains any of
 
 local data_storage = core.get_mod_storage()
 
@@ -14,20 +14,6 @@ local data_storage = core.get_mod_storage()
 ---@field frame integer Not sure if frame is the correct term here
 ---@field item_name string This is probabliy the only thing that is correct
 local to_animate = {}
-
-function Distance(x1, y1, z1, x2, y2, z2)
-  local dx = x2 - x1
-  local dy = y2 - y1
-  local dz = z2 - z1
-  return math.sqrt(dx * dx + dy * dy + dz * dz)
-end
-
-function StringContains(str, find)
-  str = string.upper(str)
-  find = string.upper(find)
-  local i, _ = string.find(str, find)
-  return i
-end
 
 ---@param this_string string the string
 ---@param split string sub to split at
@@ -52,51 +38,10 @@ function Split(this_string, split)
   return new_word
 end
 
-function SerializeMetaData(data)
-  local node_containers = {}
-  for i, v in pairs(data:to_table()) do
-    local found_container = {}
-    for container, container_items in pairs(v) do
-      local found_inv = {}
-      if type(container_items) == "table" then
-        for slot, item in pairs(container_items) do
-          table.insert(found_inv, slot, item:to_string())
-        end
-        found_container[container] = found_inv
-      else
-        found_container[container] = container_items
-      end
-    end
-    node_containers[i] = found_container
-  end
-  return core.serialize(node_containers)
-end
-
-function DeserializeMetaData(data)
-  local node_containers = {}
-  for i, v in pairs(data) do
-    local found_container = {}
-    for container, container_items in pairs(v) do
-      local found_inv = {}
-      if type(container_items) == "string" then
-        found_container[container] = container_items
-      else
-        for slot, item in pairs(container_items) do
-          found_inv[slot] = item
-        end
-        found_container[container] = found_inv
-      end
-    end
-    node_containers[i] = found_container
-  end
-  return node_containers
-end
-
 local function placeDown(placer, rot, obj, above, frame, held_item_name)
   table.insert(to_animate,
     { player = placer, rot = rot, obj = obj, pos = above, frame = frame, item = held_item_name })
 end
-
 
 local function quantize_direction(yaw)
   local angle = math.deg(yaw) % 360 -- Convert yaw to degrees and get its modulo 360
@@ -165,7 +110,7 @@ local function animatePlace()
       --NOTE(COMPAT): pipeworks update pipe, on place down
       if core.get_modpath("pipeworks") and pipeworks then
         pipeworks.scan_for_tube_objects(v.pos)
-        pipeworks.scan_for_pipe_objects(v.pos)
+        pipeworks:scan_for_pipe_objects(v.pos)
       end
     end
     v.frame = v.frame + 1
@@ -208,7 +153,7 @@ end
 
 local function isBlacklisted(pos)
   for _, v in ipairs(blacklist) do
-    if StringContains(core.get_node(pos).name, v) then
+    if utils.StringContains(core.get_node(pos).name, v) then
       return true
     end
   end
@@ -266,7 +211,7 @@ local function hands(itemstack, placer, pointed_thing)
             -- core.debug("buildabled? ",try_inside.buildable_to)
             if core.get_node(above).name ~= "air" then
               -- if core.get_node(above).name == "water" then
-              if StringContains(core.get_node(above).name, "water") then
+              if utils.StringContains(core.get_node(above).name, "water") then
                 --do nothing
               else
                 return itemstack
@@ -319,7 +264,7 @@ local function hands(itemstack, placer, pointed_thing)
         obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
         --NOTE(COMPAT): this takes care of voxelibre chests
-        if StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
+        if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
           obj:set_properties({ wield_item = "mcl_chests:chest" })
         end
 
@@ -400,7 +345,7 @@ core.register_entity("i_have_hands:held", {
           if v == pos then
             core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
             local meta = core.get_meta(vector.from_string(pos))
-            meta:from_table(DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+            meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
             data_storage:set_string(v, "")
           end
         end
@@ -587,7 +532,7 @@ core.register_globalstep(function(dtime)
       local pos = vector.from_string(v)
       core.set_node(pos, core.deserialize(data_storage:get_string(v))["node"])
       local meta = core.get_meta(pos)
-      meta:from_table(DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+      meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
       data_storage:set_string(v, "")
     end
   end

@@ -9,11 +9,15 @@ you can carry a chest, a barrel.. just about anything that has an inventory.
 
 _Hold `sneak` then `right_click(place button)` with an `empty_hand` to pickup/place down the storage containers_
 
-**NOTE**: does not work with _mineclonia_, they are completely overriding the \*hand(easy fix on their end). **(does work with voxelibre/mineclone2)**
-
 [view the roadmap](/ROADMAP.md)
 
 ---
+
+_1.0.7 CHANGELOG:_
+
+- \*\*add support for _mineclonia_
+- add a short delay to the hud popup
+- don't show the hud when the player is already holding a "chest/inventory"
 
 _1.0.6 CHANGELOG:_
 

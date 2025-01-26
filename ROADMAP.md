@@ -6,8 +6,6 @@ Make it nice.
 
 ## DOING:
 
-- [ ] MCL support for picking up double chests
-
 --NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
 
 - [ ] #BUG right after loading and trying to lift inv **inv items are safe**
@@ -32,10 +30,24 @@ Make it nice.
 
 ## DONE:
 
+### 1.0.7
+
+- [x] add a short delay to the hud popup
+  - seeing the hud message constantly is not great
+- [x] add support for mineclonia
+- [x] don't show the hud when the player is already holding a "chest/inventory"
+
+---
+
+### 1.0.6
+
+- [|] (nvm no real reason to implement this) MCL support for picking up double chests
 - [x] update gif **make it look nice**
 - [x] hover over in-game inventory show player hud
 - [x] #BUG (this is a bad thing, the worst): on drop the node will remove any node in its way
 - [x] #BUG the held inv should be dropped on death
+
+---
 
 - [x](prevent data loss): if object is not attached to anything add
   its node and set the data will have to use mod storage storage

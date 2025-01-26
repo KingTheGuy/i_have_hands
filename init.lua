@@ -161,29 +161,29 @@ local function isBlacklisted(pos)
 end
 
 local function find_empty_position(pos, radius)
-    local x, y, z = pos.x, pos.y, pos.z
-    local found = false
-    local empty_pos = nil
+  local x, y, z = pos.x, pos.y, pos.z
+  local found = false
+  local empty_pos = nil
 
-    for r = 0, radius do
-        for a = 0, 360, 10 do
-            local dx = math.floor(r * math.cos(math.rad(a)))
-            local dz = math.floor(r * math.sin(math.rad(a)))
-            local nx, nz = x + dx, z + dz
-            local ny = y
+  for r = 0, radius do
+    for a = 0, 360, 10 do
+      local dx = math.floor(r * math.cos(math.rad(a)))
+      local dz = math.floor(r * math.sin(math.rad(a)))
+      local nx, nz = x + dx, z + dz
+      local ny = y
 
-            while ny < 100 and not found do
-                local node = minetest.get_node({x = nx, y = ny, z = nz})
-                if node.name == "air" then
-                    empty_pos = {x = nx, y = ny, z = nz}
-                    found = true
-                end
-                ny = ny + 1
-            end
+      while ny < 100 and not found do
+        local node = minetest.get_node({ x = nx, y = ny, z = nz })
+        if node.name == "air" then
+          empty_pos = { x = nx, y = ny, z = nz }
+          found = true
         end
+        ny = ny + 1
+      end
     end
+  end
 
-    return empty_pos
+  return empty_pos
 end
 
 local handdef = core.registered_items[""]
@@ -287,6 +287,7 @@ local function hands(itemstack, placer, pointed_thing)
           node_containers[i] = found_container
         end
         local full_data = { node = core.get_node(pointed_thing.under), data = node_containers }
+        -- core.debug("full_data: ".. dump(full_data.data))
 
         local pos = vector.to_string(obj:get_pos())
         data_storage:set_string(pos, core.serialize(full_data))
@@ -308,16 +309,38 @@ local function hands(itemstack, placer, pointed_thing)
   --you know, return itemstack
 end
 
+local original_on_place = minetest.registered_items[""].on_place
+
 core.override_item("", {
   on_place = function(itemstack, placer, pointed_thing)
     itemstack = on_place(itemstack, placer, pointed_thing)
     hands(itemstack, placer, pointed_thing)
+
+    -- Call the original on_place function if it exists
+    if original_on_place then
+      return original_on_place(itemstack, placer, pointed_thing)
+    end
     return itemstack
   end,
   -- on_secondary_use = function(itemstack, placer, pointed_thing)
   --   hands(itemstack, placer, pointed_thing)
   -- end
 })
+
+--check if the player is holding an inventory
+local function isHolding(player)
+  if #player:get_children() > 0 then    --this is getting all connect objects
+    for index, obj in pairs(player:get_children()) do
+      if obj:get_luaentity().name == "i_have_hands:held" then
+        -- core.debug("this dude is holding")
+        return true
+      end
+      -- core.debug("nope not holding")
+      return false
+    end
+  end
+  return false
+end
 
 core.register_entity("i_have_hands:held", {
   selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
@@ -395,6 +418,15 @@ end
 local player_hud_id = {}
 
 local function getPlayerFromPlayerHuds(player_name)
+  for _, ph in ipairs(player_hud_id) do
+    if ph.player_name == player_name then
+      return ph
+    end
+  end
+  return nil
+end
+
+local function getPlayerHud(player_name)
   -- core.debug("player_huds are " .. #player_hud_id .. " in length.")
   for _, ph in ipairs(player_hud_id) do
     if ph.player_name == player_name then
@@ -405,12 +437,12 @@ local function getPlayerFromPlayerHuds(player_name)
 end
 
 local function removePlayerHud(player)
-  local hud_id = getPlayerFromPlayerHuds(player:get_player_name())
+  local hud_id = getPlayerHud(player:get_player_name())
   if hud_id ~= nil then
     player:hud_remove(hud_id)
     for index, ph in ipairs(player_hud_id) do
       if ph.player_name == player:get_player_name() then
-        table.remove(player_hud_id,index)
+        table.remove(player_hud_id, index)
       end
     end
   end
@@ -427,27 +459,10 @@ local function raycast()
       local player_pos = { x = pos.x, y = pos.y + eye_height, z = pos.z }
       local new_pos = p:get_look_dir():multiply(RayDistance):add(player_pos)
       local raycast_result = core.raycast(player_pos, new_pos, false, false):next()
-      -- core.debug("the distance is.. "..vector.distance(pos,new_pos))
-      -- core.debug(string.format("who this? %s", p:get_player_name()))
-      -- find the player.. if not then add the player.
-      -- if the player is no raycast remove the player
-      -- if raycast is not an inventory remove the player
-      --[[
-      local found_player_hud
-      if #has_hud > 0 then
-        for name,p_hud in ipairs(has_hud) do
-          if name == p.name then
-
-          end
-
-        end
+      if isHolding(p) then
+        removePlayerHud(p)
+        return
       end
-      --if not found, add the player
-      --FIXME: cant just add the player with an empty hud_id
-      if found_player_hud == nil then
-        table.insert(has_hud,p.name,hud_id)
-      end
-      --]]
 
       local hud_id = nil; --FIXME this need to be added to list of all player HUDS
       if raycast_result then
@@ -461,57 +476,69 @@ local function raycast()
           return
         end
         if isInventory(core.get_meta(raycast_result.under)) then
-          -- if isBlacklisted(raycast_result.under) == false then
-          -- core.debug("crouch & right-click to lift this..")
-          --TODO: i need to store each player's hud id at runtime
-          -- local hud_id = p:hud_add({
-          hud_id = getPlayerFromPlayerHuds(p:get_player_name())
-          -- core.debug("so wtf is this then? " .. tostring(hud_id))
-          if hud_id == nil then
-            hud_id = p:hud_add({
-              hud_elem_type = "text",
-              position = { x = 0.5, y = 0.6 },
-              direction = 0,
-              name = "ihh",
-              scale = { x = 1, y = 1 },
-              -- text = "crouch & interact to lift this",
-              text = "Carry: crouch & interact",
-              number = "0xFFFFFF",
-              z_index = 0,
-            })
-            local this_players_hud = { player_name = p:get_player_name(), player_hud = hud_id }
+          hud_id = getPlayerHud(p:get_player_name())
+          local player_with_hud = getPlayerFromPlayerHuds(p:get_player_name())
+          if player_with_hud == nil then
+            local this_players_hud = { player_name = p:get_player_name(), player_hud = hud_id , hud_delay = 6, chest_location = raycast_result.under}
             table.insert(player_hud_id, this_players_hud)
+          else
+            -- core.debug("what do we have here? "..player_with_hud.hud_delay)
+            if player_with_hud.hud_delay == 0 then
+              if hud_id == nil then
+                hud_id = p:hud_add({
+                  hud_elem_type = "text",
+                  position = { x = 0.5, y = 0.6 },
+                  direction = 0,
+                  name = "ihh",
+                  scale = { x = 1, y = 1 },
+                  -- text = "crouch & interact to lift this",
+                  text = "Carry: crouch & interact",
+                  number = "0xFFFFFF",
+                  z_index = 0,
+                })
+              end
+              player_with_hud.player_hud = hud_id
+            end
+            if player_with_hud.chest_location ~= raycast_result.under then
+              removePlayerHud(p)
+            end
           end
+          -- core.debug("so wtf is this then? " .. tostring(hud_id))
         else
           removePlayerHud(p)
         end
         -- core.debug(string.format("what is this?",core.registered_nodes[pointed_node].name))
-        else
+      else
         removePlayerHud(p)
       end
-      -- if hud_id ~= nil then
-      --   p:hud_remove(hud_id)
-      -- end
     end
   end
 end
 
-local function handNotEmpty()
+local function hotbarSlotNotEmpty()
   local player = core.get_connected_players()
   if #player > 0 then
     for _, p in ipairs(player) do
-        if p:get_wielded_item():get_name() ~= "" then
-          if #p:get_children() > 0 then --this is getting all connect objects
-            for index, obj in pairs(p:get_children()) do
-              if obj:get_luaentity().name == "i_have_hands:held" then
-                local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
-                placeDown(p, 0, obj, find_empty_position(p:get_pos(),10), 0, held_item_name)
-              end
+      if p:get_wielded_item():get_name() ~= "" then
+        if #p:get_children() > 0 then   --this is getting all connect objects
+          for index, obj in pairs(p:get_children()) do
+            if obj:get_luaentity().name == "i_have_hands:held" then
+              local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+              placeDown(p, 0, obj, find_empty_position(p:get_pos(), 10), 0, held_item_name)
             end
           end
         end
+      end
     end
   end
+end
+
+local function tickHudDelay()
+    for _,h in pairs(player_hud_id) do
+      if h.hud_delay > 0 then
+        h.hud_delay = h.hud_delay - 1
+      end
+    end
 end
 
 
@@ -523,7 +550,8 @@ core.register_globalstep(function(dtime)
   if tick > 2 then
     animatePlace()
     raycast()
-    handNotEmpty()
+    hotbarSlotNotEmpty()
+    tickHudDelay()
     tick = 0
   end
   if ran_once == false then
@@ -544,10 +572,9 @@ core.register_on_dieplayer(function(ObjectRef, reason)
     for index, obj in pairs(ObjectRef:get_children()) do
       if obj:get_luaentity().name == "i_have_hands:held" then
         local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
-        placeDown(ObjectRef, 0, obj, find_empty_position(ObjectRef:get_pos(),10), 0, held_item_name)
+        placeDown(ObjectRef, 0, obj, find_empty_position(ObjectRef:get_pos(), 10), 0, held_item_name)
       end
     end
   end
-  core.debug("what death? ".. ObjectRef:get_player_name())
-
+  -- core.debug("what death? " .. ObjectRef:get_player_name())
 end)

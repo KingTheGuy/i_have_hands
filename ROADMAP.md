@@ -30,6 +30,12 @@ Make it nice.
 
 ## DONE:
 
+### 1.0.8:
+
+bugfix:
+
+- [x] VoxeLibre players could not open door with an empty hand
+
 ### 1.0.7
 
 - [x] add a short delay to the hud popup

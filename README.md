@@ -13,6 +13,12 @@ _Hold `sneak` then `right_click(place button)` with an `empty_hand` to pickup/pl
 
 ---
 
+_1.0.8 CHANGELOG:_
+
+bugfix:
+
+- VoxeLibre players could not open door with an empty hand
+
 _1.0.7 CHANGELOG:_
 
 - \*\*add support for _mineclonia_

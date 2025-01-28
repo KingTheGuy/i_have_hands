@@ -309,7 +309,7 @@ local function hands(itemstack, placer, pointed_thing)
   --you know, return itemstack
 end
 
-local original_on_place = minetest.registered_items[""].on_place
+-- local original_on_place = minetest.registered_items[""].on_place
 
 core.override_item("", {
   on_place = function(itemstack, placer, pointed_thing)
@@ -317,9 +317,9 @@ core.override_item("", {
     hands(itemstack, placer, pointed_thing)
 
     -- Call the original on_place function if it exists
-    if original_on_place then
-      return original_on_place(itemstack, placer, pointed_thing)
-    end
+    -- if original_on_place then
+    --   return original_on_place(itemstack, placer, pointed_thing)
+    -- end
     return itemstack
   end,
   -- on_secondary_use = function(itemstack, placer, pointed_thing)

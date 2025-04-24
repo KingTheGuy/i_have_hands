@@ -1,7 +1,3 @@
-# roadmap
-
-Make it nice.
-
 ## TODO
 
 ## DOING:
@@ -29,6 +25,12 @@ Make it nice.
 - [ ] crashes sometimes when a player spams picking up/down
 
 ## DONE:
+
+### 1.0.9:
+
+bugfix:
+
+- crash when dropping a chest with pipeworks installed
 
 ### 1.0.8:
 

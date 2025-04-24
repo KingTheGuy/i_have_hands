@@ -109,8 +109,7 @@ local function animatePlace()
       end
       --NOTE(COMPAT): pipeworks update pipe, on place down
       if core.get_modpath("pipeworks") and pipeworks then
-        pipeworks.scan_for_tube_objects(v.pos)
-        pipeworks:scan_for_pipe_objects(v.pos)
+    		pipeworks.after_place(v.pos)
       end
     end
     v.frame = v.frame + 1
@@ -298,8 +297,7 @@ local function hands(itemstack, placer, pointed_thing)
 
         --NOTE(COMPAT): pipeworks update pipe, on pickup
         if core.get_modpath("pipeworks") and pipeworks then
-          pipeworks.scan_for_tube_objects(pointed_thing.under)
-          pipeworks.scan_for_pipe_objects(pointed_thing.under)
+          pipeworks.after_place(pointed_thing.under)
         end
 
         -- core.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
@@ -388,32 +386,6 @@ core.register_entity("i_have_hands:held", {
     end
   end,
 })
-
-local function findNearestPosition(pos)
-  local search_radius = 30 -- Adjust the search radius as needed
-  local min_distance = math.huge
-  local nearest_pos = pos
-
-  for dx = -search_radius, search_radius do
-    for dy = -search_radius, search_radius do
-      for dz = -search_radius, search_radius do
-        local new_pos = vector.add(pos, { x = dx, y = dy, z = dz })
-        local node = core.get_node(new_pos)
-        local node_above = core.get_node(vector.add(new_pos, { x = 0, y = 1, z = 0 }))
-        if node_above.name == "air" then
-          -- core.debug(string.format("%s:%s:%s",node.name,node_below.name,node_below_below.name))
-          local distance = vector.distance(pos, new_pos)
-          if distance < min_distance then
-            min_distance = distance
-            nearest_pos = node_above
-          end
-        end
-      end
-    end
-  end
-
-  return nearest_pos
-end
 
 local player_hud_id = {}
 

@@ -12,6 +12,12 @@ _Hold `sneak` then `right_click(place button)` with an `empty_hand` to pickup/pl
 [view the roadmap](/ROADMAP.md)
 
 ---
+ 
+_1.0.9 CHANGELOG:_
+
+bugfix:
+
+- crash when dropping a chest with pipeworks installed
 
 _1.0.8 CHANGELOG:_
 

@@ -39,8 +39,10 @@ function Split(this_string, split)
 end
 
 local function placeDown(placer, rot, obj, above, frame, held_item_name)
-  placer:set_bone_override("Arm_Right",{rotation={absolute=false,interpolation=0,vec={x=0,y=0,z=0}}})
-  placer:set_bone_override("Arm_Left",{rotation={absolute=false,interpolation=0,vec={x=0,y=0,z=0}}})
+  placer:set_bone_override("Arm_Right",
+    { rotation = { absolute = false, interpolation = 0, vec = { x = 0, y = 0, z = 0 } } })
+  placer:set_bone_override("Arm_Left",
+    { rotation = { absolute = false, interpolation = 0, vec = { x = 0, y = 0, z = 0 } } })
   table.insert(to_animate,
     { player = placer, rot = rot, obj = obj, pos = above, frame = frame, item = held_item_name })
 end
@@ -58,6 +60,89 @@ local function quantize_direction(yaw)
   end
 end
 
+
+local function particle(pos, color, dir)
+  local velocity = dir
+  local position = pos or { x = 0, y = 0, z = 0 }
+
+  local set_color = ""
+  if color ~= nil then
+    set_color = "^[colorize:" .. color .. ":255"
+  end
+
+  core.add_particle({
+    pos = position,
+    velocity = velocity,
+    acceleration = { x = 0, y = 0, z = 0 },
+    -- Spawn particle at pos with velocity and acceleration
+
+    expirationtime = 0.8,
+    -- Disappears after expirationtime seconds
+
+    size = 6,
+    -- Scales the visual size of the particle texture.
+    -- If `node` is set, size can be set to 0 to spawn a randomly-sized
+    -- particle (just like actual node dig particles).
+
+    collisiondetection = false,
+    -- If true collides with `walkable` nodes and, depending on the
+    -- `object_collision` field, objects too.
+
+    collision_removal = false,
+    -- If true particle is removed when it collides.
+    -- Requires collisiondetection = true to have any effect.
+
+    object_collision = false,
+    -- If true particle collides with objects that are defined as
+    -- `physical = true,` and `collide_with_objects = true,`.
+    -- Requires collisiondetection = true to have any effect.
+
+    vertical = false,
+    -- If true faces player using y axis only
+
+    texture = "i_have_hands_particle.png" .. set_color,
+    -- The texture of the particle
+    -- v5.6.0 and later: also supports the table format described in the
+    -- following section, but due to a bug this did not take effect
+    -- (beyond the texture name).
+    -- v5.9.0 and later: fixes the bug.
+    -- Note: "texture.animation" is ignored here. Use "animation" below instead.
+
+    -- playername = "singleplayer",
+    -- Optional, if specified spawns particle only on the player's client
+
+    -- animation = { Tile Animation definition },
+    -- Optional, specifies how to animate the particle texture
+
+    glow = 0,
+    -- Optional, specify particle self-luminescence in darkness.
+    -- Values 0-14.
+
+    -- node = { name = "ignore", param2 = 0 },
+    -- Optional, if specified the particle will have the same appearance as
+    -- node dig particles for the given node.
+    -- `texture` and `animation` will be ignored if this is set.
+
+    -- node_tile = 0,
+    -- Optional, only valid in combination with `node`
+    -- If set to a valid number 1-6, specifies the tile from which the
+    -- particle texture is picked.
+    -- Otherwise, the default behavior is used. (currently: any random tile)
+
+    -- drag = { x = 0, y = 0, z = 0 },
+    -- v5.6.0 and later: Optional drag value, consult the following section
+    -- Note: Only a vector is supported here. Alternative forms like a single
+    -- number are not supported.
+
+    -- jitter = { min = 1, max = 10, bias = 0 },
+    -- v5.6.0 and later: Optional jitter range, consult the following section
+
+    -- bounce = { min = ..., max = ..., bias = 0 },
+    -- v5.6.0 and later: Optional bounce range, consult the following section
+  }
+  )
+end
+
 --object, pos, frame
 --not in use atm
 local function animatePlace()
@@ -66,25 +151,36 @@ local function animatePlace()
       v.obj:set_detach()
       v.obj:set_yaw(v.rot)
       local obj_rot = v.obj:get_rotation()
-      v.obj:set_rotation({ x = math.rad(-20), y = obj_rot.y, z = obj_rot.z })
-      v.obj:set_properties({ visual_size = { x = 0.5, y = 0.5, z = 0.5 } })
-      v.obj:set_pos(v.pos)
-      v.obj:set_properties({ pointable = true })
-      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = 0.7 }, true)
+      -- v.obj:set_rotation({ x = math.rad(-20), y = obj_rot.y, z = obj_rot.z })
+      -- v.obj:set_rotation({ x = obj_rot.x+ math.rad(-90), y = obj_rot.y, z = obj_rot.z })
+      -- v.obj:set_properties({ visual_size = { x = 0.5, y = 0.5, z = 0.5 } })
+      -- v.obj:set_properties({ visual_size = { x = 0.6, y = 0.6, z = 0.6 } })
+      v.obj:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
+      -- v.obj:set_pos(v.pos)
+      -- v.obj:set_properties({ pointable = true })
+
+      local ghost = core.add_entity(v.pos, "i_have_hands:ghost")
+      ghost:set_rotation({ x = obj_rot.x, y = obj_rot.y + math.rad(-90), z = obj_rot.z })
+      v.obj:set_attach(ghost, "BONE", vector.new(0, 0, 0), vector.new(0, -90, 0))
+      ghost:set_animation({ x = 0.40, y = 160 }, 4, 0, false)
+
+      v["ghost"] = ghost
+      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = 0.7, gain = 1 }, true)
     end
     if v.frame == 1 then
-      local obj_rot = v.obj:get_rotation()
-      v.obj:set_rotation({ x = math.rad(0), y = obj_rot.y, z = obj_rot.z })
-      v.obj:set_properties({ visual_size = { x = 0.6, y = 0.6, z = 0.6 } })
+      -- local obj_rot = v.obj:get_rotation()
+      -- v.obj:set_rotation({ x = math.rad(0), y = obj_rot.y, z = obj_rot.z })
+      -- v.obj:set_properties({ visual_size = { x = 0.6, y = 0.6, z = 0.6 } })
+      -- particle(vector.new(v.pos.x,v.pos.y-0.5,v.pos.z),"#ffffff",vector.new(0,0.5,1.5))
     end
     if v.frame == 2 then
-      v.obj:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
+      -- v.obj:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
     end
-    if v.frame == 1 then
+    if v.frame == 5 then
       local found_meta = data_storage:get_string(v.obj:get_luaentity().initial_pos)
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
       core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
-      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos }, true)
+      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, gain = 1 }, true)
       local meta = core.get_meta(v.pos)
 
       local node_containers = {}
@@ -111,12 +207,14 @@ local function animatePlace()
       end
       --NOTE(COMPAT): pipeworks update pipe, on place down
       if core.get_modpath("pipeworks") and pipeworks then
-    		pipeworks.after_place(v.pos)
+        pipeworks.after_place(v.pos)
       end
     end
     v.frame = v.frame + 1
-    if v.frame >= 6 then
+    -- core.log("despawn in: " .. v.frame)
+    if v.frame >= 10 then
       v.obj:remove()
+      v.ghost:remove()
       v.obj = nil
       table.remove(to_animate, i)
     end
@@ -255,14 +353,16 @@ local function hands(itemstack, placer, pointed_thing)
           return itemstack
         end
         local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
-        local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
+        -- local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
         obj:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
         -- obj:set_attach(ghost, "", { x = 0, y = 4, z = -3.4 }, { x = 0, y = 0, z = 0 }, true)
         -- ghost:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
         -- obj:set_attach(placer, "Arm_Right", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
         -- core.log(core.colorize("red","attach: "..dump(placer:get_bone_override("Arm_Right"))))
-        placer:set_bone_override("Arm_Right",{rotation={absolute=false,interpolation=0,vec={x=math.rad(45),y=0,z=0}}})
-        placer:set_bone_override("Arm_Left",{rotation={absolute=false,interpolation=0,vec={x=math.rad(45),y=0,z=0}}})
+        placer:set_bone_override("Arm_Right",
+          { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
+        placer:set_bone_override("Arm_Left",
+          { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
         --NOTE: attaching to the head just does not look very good, so lets not do that.
         -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
         obj:set_properties({
@@ -302,7 +402,7 @@ local function hands(itemstack, placer, pointed_thing)
         obj:get_luaentity().initial_pos = pos
         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
         core.remove_node(pointed_thing.under)
-        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under }, true)
+        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under, gain = 1 }, true)
 
         --NOTE(COMPAT): pipeworks update pipe, on pickup
         if core.get_modpath("pipeworks") and pipeworks then
@@ -336,7 +436,7 @@ core.override_item("", {
 
 --check if the player is holding an inventory
 local function isHolding(player)
-  if #player:get_children() > 0 then    --this is getting all connect objects
+  if #player:get_children() > 0 then --this is getting all connect objects
     for index, obj in pairs(player:get_children()) do
       if obj:get_luaentity().name == "i_have_hands:held" then
         -- core.debug("this dude is holding")
@@ -408,43 +508,46 @@ core.register_entity("i_have_hands:ghost", {
   mesh = "i_have_hands_ghost.glb",
   -- visual = "item",
   -- wield_item = "",
-  visual_size = { x = 1, y = 1, z = 1},
+  textures = { "i_have_hands_texture.png", },
+  visual_size = { x = 1, y = 1, z = 1 },
   _initial_pos = "",
   on_step = function(self, dtime, moveresult)
     -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
 
-    if self.object:get_attach() == nil then
-      local contains = false
-      for i, v in pairs(to_animate) do
-        if v.obj == self.object then
-          -- core.debug("should not delete this yet")
-          contains = true
-        end
-      end
-      if contains == false then
-        local pos = self.object:get_luaentity().initial_pos
-        for i, v in pairs(data_storage:get_keys()) do
-          if v == pos then
-            core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
-            local meta = core.get_meta(vector.from_string(pos))
-            meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
-            data_storage:set_string(v, "")
-          end
-        end
-        self.object:remove()
-      end
+    if #self.object:get_children() <= 0 then
+      self.object:remove()
     end
+    --   local contains = false
+    --   for i, v in pairs(to_animate) do
+    --     if v.obj == self.object then
+    --       -- core.debug("should not delete this yet")
+    --       contains = true
+    --     end
+    --   end
+    --   if contains == false then
+    --     local pos = self.object:get_luaentity().initial_pos
+    --     for i, v in pairs(data_storage:get_keys()) do
+    --       if v == pos then
+    --         core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
+    --         local meta = core.get_meta(vector.from_string(pos))
+    --         meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+    --         data_storage:set_string(v, "")
+    --       end
+    --     end
+    --     self.object:remove()
+    --   end
+    -- end
 
-    --updute pos and data
-    if self.object:get_luaentity() then
-      if self.object:get_luaentity().initial_pos ~= nil then
-        local pos = self.object:get_luaentity().initial_pos
-        local data = data_storage:get_string(pos)
-        data_storage:set_string(pos)
-        self.object:get_luaentity().initial_pos = vector.to_string(self.object:get_pos())
-        data_storage:set_string(vector.to_string(self.object:get_pos()), data)
-      end
-    end
+    -- --updute pos and data
+    -- if self.object:get_luaentity() then
+    --   if self.object:get_luaentity().initial_pos ~= nil then
+    --     local pos = self.object:get_luaentity().initial_pos
+    --     local data = data_storage:get_string(pos)
+    --     data_storage:set_string(pos)
+    --     self.object:get_luaentity().initial_pos = vector.to_string(self.object:get_pos())
+    --     data_storage:set_string(vector.to_string(self.object:get_pos()), data)
+    --   end
+    -- end
   end,
 })
 
@@ -512,14 +615,20 @@ local function raycast()
           hud_id = getPlayerHud(p:get_player_name())
           local player_with_hud = getPlayerFromPlayerHuds(p:get_player_name())
           if player_with_hud == nil then
-            local this_players_hud = { player_name = p:get_player_name(), player_hud = hud_id , hud_delay = 6, chest_location = raycast_result.under}
+            local this_players_hud = {
+              player_name = p:get_player_name(),
+              player_hud = hud_id,
+              hud_delay = 6,
+              chest_location =
+                  raycast_result.under
+            }
             table.insert(player_hud_id, this_players_hud)
           else
             -- core.debug("what do we have here? "..player_with_hud.hud_delay)
             if player_with_hud.hud_delay == 0 then
               if hud_id == nil then
                 hud_id = p:hud_add({
-                  hud_elem_type = "text",
+                  type = "text",
                   position = { x = 0.5, y = 0.6 },
                   direction = 0,
                   name = "ihh",
@@ -553,7 +662,7 @@ local function hotbarSlotNotEmpty()
   if #player > 0 then
     for _, p in ipairs(player) do
       if p:get_wielded_item():get_name() ~= "" then
-        if #p:get_children() > 0 then   --this is getting all connect objects
+        if #p:get_children() > 0 then --this is getting all connect objects
           for index, obj in pairs(p:get_children()) do
             if obj:get_luaentity().name == "i_have_hands:held" then
               local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
@@ -567,11 +676,11 @@ local function hotbarSlotNotEmpty()
 end
 
 local function tickHudDelay()
-    for _,h in pairs(player_hud_id) do
-      if h.hud_delay > 0 then
-        h.hud_delay = h.hud_delay - 1
-      end
+  for _, h in pairs(player_hud_id) do
+    if h.hud_delay > 0 then
+      h.hud_delay = h.hud_delay - 1
     end
+  end
 end
 
 

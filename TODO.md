@@ -2,7 +2,9 @@
 
 ## DOING:
 
-- [ ] have two entities main one will handle the animation
+- [ ] #bug reset the arm on death.. or whenever the chest is dropped (same logic)
+- [x] hud_elem_type to type
+- [x] have two entities main one will handle the animation
   - second one will handle displaying the *held inventory
 
 --NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
@@ -17,6 +19,7 @@
 
 ## BACKLOG:
 
+- [ ] add dust particle, to play right when the chest angles back down.
 - [ ] implement moving just about anything that is a container... and
       take into account it's on_place function (or what is in the timer)
 - [ ] prevent switching hotbar slot

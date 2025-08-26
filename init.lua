@@ -39,6 +39,8 @@ function Split(this_string, split)
 end
 
 local function placeDown(placer, rot, obj, above, frame, held_item_name)
+  placer:set_bone_override("Arm_Right",{rotation={absolute=false,interpolation=0,vec={x=0,y=0,z=0}}})
+  placer:set_bone_override("Arm_Left",{rotation={absolute=false,interpolation=0,vec={x=0,y=0,z=0}}})
   table.insert(to_animate,
     { player = placer, rot = rot, obj = obj, pos = above, frame = frame, item = held_item_name })
 end
@@ -253,7 +255,14 @@ local function hands(itemstack, placer, pointed_thing)
           return itemstack
         end
         local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
-        obj:set_attach(placer, "", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
+        obj:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        -- obj:set_attach(ghost, "", { x = 0, y = 4, z = -3.4 }, { x = 0, y = 0, z = 0 }, true)
+        -- ghost:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        -- obj:set_attach(placer, "Arm_Right", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        -- core.log(core.colorize("red","attach: "..dump(placer:get_bone_override("Arm_Right"))))
+        placer:set_bone_override("Arm_Right",{rotation={absolute=false,interpolation=0,vec={x=math.rad(45),y=0,z=0}}})
+        placer:set_bone_override("Arm_Left",{rotation={absolute=false,interpolation=0,vec={x=math.rad(45),y=0,z=0}}})
         --NOTE: attaching to the head just does not look very good, so lets not do that.
         -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
         obj:set_properties({
@@ -345,9 +354,61 @@ core.register_entity("i_have_hands:held", {
   pointable = false,
   physical = false,
   collide_with_objects = false,
+  -- visual = "mesh",
+  -- mesh = "i_have_hands_ghost.glb",
   visual = "item",
   wield_item = "",
   visual_size = { x = 0.35, y = 0.35, z = 0.35 },
+  _initial_pos = "",
+  on_step = function(self, dtime, moveresult)
+    -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
+
+    if self.object:get_attach() == nil then
+      local contains = false
+      for i, v in pairs(to_animate) do
+        if v.obj == self.object then
+          -- core.debug("should not delete this yet")
+          contains = true
+        end
+      end
+      if contains == false then
+        local pos = self.object:get_luaentity().initial_pos
+        for i, v in pairs(data_storage:get_keys()) do
+          if v == pos then
+            core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
+            local meta = core.get_meta(vector.from_string(pos))
+            meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+            data_storage:set_string(v, "")
+          end
+        end
+        self.object:remove()
+      end
+    end
+
+    --updute pos and data
+    if self.object:get_luaentity() then
+      if self.object:get_luaentity().initial_pos ~= nil then
+        local pos = self.object:get_luaentity().initial_pos
+        local data = data_storage:get_string(pos)
+        data_storage:set_string(pos)
+        self.object:get_luaentity().initial_pos = vector.to_string(self.object:get_pos())
+        data_storage:set_string(vector.to_string(self.object:get_pos()), data)
+      end
+    end
+  end,
+})
+
+
+core.register_entity("i_have_hands:ghost", {
+  selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
+  pointable = false,
+  physical = false,
+  collide_with_objects = false,
+  visual = "mesh",
+  mesh = "i_have_hands_ghost.glb",
+  -- visual = "item",
+  -- wield_item = "",
+  visual_size = { x = 1, y = 1, z = 1},
   _initial_pos = "",
   on_step = function(self, dtime, moveresult)
     -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))

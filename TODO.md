@@ -2,8 +2,12 @@
 
 ## DOING:
 
+- [ ] have two entities main one will handle the animation
+  - second one will handle displaying the *held inventory
+
 --NOTE: MCL_furnace, breaks if picked up.. lets just blacklist it
 
+- [ ] instead of _get_properties_ do **initial_properties**
 - [ ] #BUG right after loading and trying to lift inv **inv items are safe**
 
   > item_OnPlace(): /home/surv/.minetest/mods/i_have_hands/init.lua:266: attempt to index a nil value
@@ -13,6 +17,8 @@
 
 ## BACKLOG:
 
+- [ ] implement moving just about anything that is a container... and
+      take into account it's on_place function (or what is in the timer)
 - [ ] prevent switching hotbar slot
 - [ ] prevent slot from being filled.
       make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.

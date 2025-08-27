@@ -5,10 +5,13 @@
 - furnaces can now be picked up again
 - player now looks like they are holding the inventory node in their hands
 - placement animation is now an actual animation (looks smoother)
+- added option to allow picking up any node (enable via command `/ihh allow_all`)
+- added commands/settings (settings get reset, unless changed in init file)
 - sounds effects are a bit louder
-- added an option to allow picking up any node
+- added support for `age of mending(game)`, not fully but.. it works.
 - updated some deprecated stuff
 - added a CHANGELOG file
+- updated demo gif and banner images
 
 
 ### 1.0.9:

@@ -54,3 +54,10 @@ function utils.DeserializeMetaData(data)
   return node_containers
 end
 
+function utils.Split(str, delimiter)
+	local result = {}
+	for match in (str .. delimiter):gmatch("(.-)" .. delimiter) do
+		table.insert(result, match)
+	end
+	return result
+end

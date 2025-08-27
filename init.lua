@@ -1,4 +1,7 @@
 dofile(minetest.get_modpath("i_have_hands") .. "/utils.lua")
+dofile(minetest.get_modpath("i_have_hands") .. "/menu.lua")
+
+Allow_all = false --default for only nodes with inventories
 
 --moving a hot furnace with just your hands.. i don't this so buddy
 local RayDistance = 4;                     --this should be changed to the players reach
@@ -7,8 +10,6 @@ local RayDistance = 4;                     --this should be changed to the playe
 local blacklist = { "shulker" } --if the name contains any of
 
 local data_storage = core.get_mod_storage()
-
-local allow_all = true --default for only nodes with inventories
 
 ---@class Animate
 ---@field player table The damn player
@@ -168,7 +169,7 @@ local function animatePlace()
       ghost:set_animation({ x = 0.40, y = 160 }, 4, 0, false)
 
       v["ghost"] = ghost
-      core.sound_play({ name = "i_have_hands_pickup_node_louder" }, { pos = v.pos, pitch = math.random(0.7,1.2), gain = 1 }, true)
+      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = math.random(0.7,1.2), gain = 1 }, true)
     end
     if v.frame == 1 then
       -- local obj_rot = v.obj:get_rotation()
@@ -183,8 +184,12 @@ local function animatePlace()
       local found_meta = data_storage:get_string(v.obj:get_luaentity().initial_pos)
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
       core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
-      core.sound_play({ name = "i_have_hands_place_down_node_louder" }, { pos = v.pos, pitch = math.random(0.7,1.2),gain = 1 }, true)
-      core.get_node_timer(v.pos):start(0.1)
+      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, pitch = math.random(0.7,1.2),gain = 1 }, true)
+      local node_sound = core.registered_nodes[v.item].sounds.place.name
+      if node_sound ~= nil then
+        core.sound_play({ name = node_sound }, { pos = v.pos,gain = 1 }, true)
+      end
+      core.get_node_timer(v.pos):start(1.0)
       local meta = core.get_meta(v.pos)
 
       local node_containers = {}
@@ -204,7 +209,7 @@ local function animatePlace()
         node_containers[i] = found_container
       end
       meta:from_table(node_containers)
-
+      
       -- MCL_FURANCE set the XP to zero
       if meta:get_int("xp") > 0 then
         meta:set_int("xp",0)
@@ -251,8 +256,7 @@ local function checkProtection(pos, user)
 end
 
 local function isInventory(meta)
-  if allow_all == true then
-    core.log(core.colorize("CYAN","lets allow it"))
+  if Allow_all == true then
     return true
   end
   local count = 0
@@ -367,7 +371,11 @@ local function hands(itemstack, placer, pointed_thing)
         end
         local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
         -- local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
+        -- core.log("bones: "..dump(placer:get_bone_overrides()))
+
         obj:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+        -- obj:set_attach(placer, "armR", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+
         -- obj:set_attach(ghost, "", { x = 0, y = 4, z = -3.4 }, { x = 0, y = 0, z = 0 }, true)
         -- ghost:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
         -- obj:set_attach(placer, "Arm_Right", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
@@ -387,6 +395,11 @@ local function hands(itemstack, placer, pointed_thing)
         --NOTE(COMPAT): this takes care of voxelibre chests
         if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
           obj:set_properties({ wield_item = "mcl_chests:chest" })
+          -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
+          -- if drawtype == "mesh" then
+          --   obj:set_properties({ wield_item = "mcl_chests:chest" })
+          -- end
+          -- obj:set_properties({ wield_item = "mcl_chests:"..name })
         end
 
         -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
@@ -414,8 +427,15 @@ local function hands(itemstack, placer, pointed_thing)
         data_storage:set_string(pos, core.serialize(full_data))
         obj:get_luaentity().initial_pos = pos
         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
-        core.remove_node(pointed_thing.under)
-        core.sound_play({ name = "i_have_hands_pickup_node_louder" }, { pos = pointed_thing.under,pitch = math.random(0.7,1.2), gain = 1 }, true)
+
+        -- NOTE(COMPAT): age of meding support, may break in the future
+        if string.find(core.get_node(pointed_thing.under).name,"aom_storage") then
+          core.swap_node(pointed_thing.under,core.registered_nodes["air"])
+        else
+          core.remove_node(pointed_thing.under)
+        end
+
+        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under,pitch = math.random(0.7,1.2), gain = 1 }, true)
 
         --NOTE(COMPAT): pipeworks update pipe, on pickup
         if core.get_modpath("pipeworks") and pipeworks then
@@ -647,7 +667,7 @@ local function raycast()
                   name = "ihh",
                   scale = { x = 1, y = 1 },
                   -- text = "crouch & interact to lift this",
-                  text = "Carry: crouch & interact",
+                  text = "carry: crouch & interact",
                   number = "0xFFFFFF",
                   z_index = 0,
                 })

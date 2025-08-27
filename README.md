@@ -1,4 +1,4 @@
-![sample-gif](./repo-assets/crunchy.gif)
+![sample-gif](./repo-assets/demo_gif.gif)
 
 ---
 

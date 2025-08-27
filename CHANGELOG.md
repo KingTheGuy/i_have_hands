@@ -2,8 +2,11 @@
 
 ### 1.10.0:
 
+- furnaces can now be picked up again
 - player now looks like they are holding the inventory node in their hands
 - placement animation is now an actual animation (looks smoother)
+- sounds effects are a bit louder
+- added an option to allow picking up any node
 - updated some deprecated stuff
 - added a CHANGELOG file
 

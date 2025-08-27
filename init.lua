@@ -8,6 +8,8 @@ local blacklist = { "shulker" } --if the name contains any of
 
 local data_storage = core.get_mod_storage()
 
+local allow_all = true --default for only nodes with inventories
+
 ---@class Animate
 ---@field player table The damn player
 ---@field rotation integer Not sure if this is vector
@@ -166,7 +168,7 @@ local function animatePlace()
       ghost:set_animation({ x = 0.40, y = 160 }, 4, 0, false)
 
       v["ghost"] = ghost
-      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = 0.7, gain = 1 }, true)
+      core.sound_play({ name = "i_have_hands_pickup_node_louder" }, { pos = v.pos, pitch = math.random(0.7,1.2), gain = 1 }, true)
     end
     if v.frame == 1 then
       -- local obj_rot = v.obj:get_rotation()
@@ -181,7 +183,7 @@ local function animatePlace()
       local found_meta = data_storage:get_string(v.obj:get_luaentity().initial_pos)
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
       core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
-      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, gain = 1 }, true)
+      core.sound_play({ name = "i_have_hands_place_down_node_louder" }, { pos = v.pos, pitch = math.random(0.7,1.2),gain = 1 }, true)
       core.get_node_timer(v.pos):start(0.1)
       local meta = core.get_meta(v.pos)
 
@@ -249,6 +251,10 @@ local function checkProtection(pos, user)
 end
 
 local function isInventory(meta)
+  if allow_all == true then
+    core.log(core.colorize("CYAN","lets allow it"))
+    return true
+  end
   local count = 0
   for _ in pairs(meta:to_table()["inventory"]) do count = count + 1 end
   if count < 1 then --inve have a value of 1 or greater
@@ -409,7 +415,7 @@ local function hands(itemstack, placer, pointed_thing)
         obj:get_luaentity().initial_pos = pos
         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
         core.remove_node(pointed_thing.under)
-        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under, gain = 1 }, true)
+        core.sound_play({ name = "i_have_hands_pickup_node_louder" }, { pos = pointed_thing.under,pitch = math.random(0.7,1.2), gain = 1 }, true)
 
         --NOTE(COMPAT): pipeworks update pipe, on pickup
         if core.get_modpath("pipeworks") and pipeworks then

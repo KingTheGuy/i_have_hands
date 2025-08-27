@@ -2,7 +2,8 @@
 
 ## DOING:
 
-- [ ] #bug reset the arm on death.. or whenever the chest is dropped (same logic)
+- [x] furnace timer resumes
+- [x] add CHANGELOG file
 - [x] hud_elem_type to type
 - [x] have two entities main one will handle the animation
   - second one will handle displaying the *held inventory
@@ -32,51 +33,5 @@
 - [ ] better sound effects
 - [ ] rewrite description. carry nodes & blocks that have an inventory without breaking them.
 - [ ] crashes sometimes when a player spams picking up/down
+- [ ] #BUG (can't be reset till the player respawns) reset the arm on death.. or whenever the chest is dropped (same logic)
 
-## DONE:
-
-### 1.0.9:
-
-bugfix:
-
-- crash when dropping a chest with pipeworks installed
-
-### 1.0.8:
-
-bugfix:
-
-- [x] VoxeLibre players could not open door with an empty hand
-
-### 1.0.7
-
-- [x] add a short delay to the hud popup
-  - seeing the hud message constantly is not great
-- [x] add support for mineclonia
-- [x] don't show the hud when the player is already holding a "chest/inventory"
-
----
-
-### 1.0.6
-
-- [|] (nvm no real reason to implement this) MCL support for picking up double chests
-- [x] update gif **make it look nice**
-- [x] hover over in-game inventory show player hud
-- [x] #BUG (this is a bad thing, the worst): on drop the node will remove any node in its way
-- [x] #BUG the held inv should be dropped on death
-
----
-
-- [x](prevent data loss): if object is not attached to anything add
-  its node and set the data will have to use mod storage storage
-  needs to store and objects
-- [x]: inv to storage {owner=POS,data=metadata}
-- [x]: drop/place node when the player leaves
-- [x]: need to check if node has protection
-- [x]: placing is eating blocks at times, need to check if node is empty
-- [x]: view in first person
-- [x](issue could be that obj pos is float): detached should appear as
-  close as possible to the last location
-- [x]_kinda_: add a fall back a node's visual is nil
-- [x](audio:good enough,visual:good): add some effects
-- [x]: figure out double chests
-- [x]: add support for storage drawers mod

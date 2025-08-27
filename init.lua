@@ -3,7 +3,8 @@ dofile(minetest.get_modpath("i_have_hands") .. "/utils.lua")
 --moving a hot furnace with just your hands.. i don't this so buddy
 local RayDistance = 4;                     --this should be changed to the players reach
 --invs to block
-local blacklist = { "furnace", "shulker" } --if the name contains any of
+-- local blacklist = { "furnace", "shulker" } --if the name contains any of
+local blacklist = { "shulker" } --if the name contains any of
 
 local data_storage = core.get_mod_storage()
 
@@ -181,6 +182,7 @@ local function animatePlace()
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
       core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
       core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, gain = 1 }, true)
+      core.get_node_timer(v.pos):start(0.1)
       local meta = core.get_meta(v.pos)
 
       local node_containers = {}

@@ -203,6 +203,11 @@ local function animatePlace()
       end
       meta:from_table(node_containers)
 
+      -- MCL_FURANCE set the XP to zero
+      if meta:get_int("xp") > 0 then
+        meta:set_int("xp",0)
+      end
+
       --NOTE(COMPAT): this adds support for the storage_drawers mod
       if core.get_modpath("drawers") and drawers then
         drawers.spawn_visuals(v.pos)

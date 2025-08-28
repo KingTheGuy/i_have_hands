@@ -2,7 +2,7 @@
 
 ## DOING:
 
-- [ ] add perms (70% sure anyone can change the allow_all settings)
+- [x] add privs (70% sure anyone can change the allow_all settings)
 - [ ] (wtf does this mean??) instead of _get_properties_ do **initial_properties**
 
 - [ ] (was fixed?) #BUG right after loading and trying to lift inv **inv items are safe**
@@ -13,8 +13,8 @@
 
 ## BACKLOG:
 
-- [ ] make them throw-able
 - [ ] add hud indicator
+- [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (may be over kill considering this is a chest re-locating mode)
   - add my own type of orientation fixing item?

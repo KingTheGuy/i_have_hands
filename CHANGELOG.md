@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 1.10.1:
+
+- player now needs privs/perms to use commands(oops)
+
 ### 1.10.0:
 
 - furnaces can now be picked up again

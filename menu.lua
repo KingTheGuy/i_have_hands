@@ -6,7 +6,7 @@ dofile(minetest.get_modpath("i_have_hands") .. "/utils.lua")
 core.register_chatcommand("ihh", {
   params = "[ help | allow_all ]",
   description = "global settings for i_have_hands mod",
-  privs = {},
+  privs = {ihh_global=true},
   func = function(name, param)
     -- core.log("player: "..name.." cmd: "..param)
     if param == nil then
@@ -33,3 +33,5 @@ core.register_chatcommand("ihh", {
     core.chat_send_player(name, core.colorize("YELLOW", msg))
   end
 })
+
+core.register_privilege("ihh_global", "set global settings for i_have_hands")

@@ -2,6 +2,7 @@
 
 ### 1.10.1:
 
+- added hud indicator (in case the carried inv node does not render)
 - player now needs privs/perms to use commands(oops)
 
 ### 1.10.0:

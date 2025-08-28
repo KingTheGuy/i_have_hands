@@ -2,9 +2,7 @@
 
 ## DOING:
 
-- [x] add privs (70% sure anyone can change the allow_all settings)
 - [ ] (wtf does this mean??) instead of _get_properties_ do **initial_properties**
-
 - [ ] (was fixed?) #BUG right after loading and trying to lift inv **inv items are safe**
   > item_OnPlace(): /home/surv/.minetest/mods/i_have_hands/init.lua:266: attempt to index a nil value
   > stack traceback:[C]: ?
@@ -13,7 +11,7 @@
 
 ## BACKLOG:
 
-- [ ] add hud indicator
+- [ ] settings menu, for adjusting hud element
 - [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (may be over kill considering this is a chest re-locating mode)
@@ -40,6 +38,8 @@
 
 ## DONE:
 
+- [x] add hud indicator
+- [x] add privs (70% sure anyone can change the allow_all settings)
 - [x] change the banner image
 - [.] (somewhat) add support for age of mending
 - [x] fix up/ add the create_release script

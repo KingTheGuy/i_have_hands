@@ -4,7 +4,7 @@ dofile(minetest.get_modpath("i_have_hands") .. "/menu.lua")
 Allow_all = false --default for only nodes with inventories
 
 --moving a hot furnace with just your hands.. i don't this so buddy
-local RayDistance = 4;                     --this should be changed to the players reach
+local RayDistance = 4; --this should be changed to the players reach
 --invs to block
 -- local blacklist = { "furnace", "shulker" } --if the name contains any of
 local blacklist = { "shulker" } --if the name contains any of
@@ -169,7 +169,8 @@ local function animatePlace()
       ghost:set_animation({ x = 0.40, y = 160 }, 4, 0, false)
 
       v["ghost"] = ghost
-      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = math.random(0.7,1.2), gain = 1 }, true)
+      core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = v.pos, pitch = math.random(0.7, 1.2), gain = 1 },
+        true)
     end
     if v.frame == 1 then
       -- local obj_rot = v.obj:get_rotation()
@@ -184,10 +185,11 @@ local function animatePlace()
       local found_meta = data_storage:get_string(v.obj:get_luaentity().initial_pos)
       data_storage:set_string(v.obj:get_luaentity().initial_pos, "") --clear it
       core.set_node(v.pos, { name = v.item, param2 = core.dir_to_fourdir(core.yaw_to_dir(v.rot)) })
-      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, pitch = math.random(0.7,1.2),gain = 1 }, true)
+      core.sound_play({ name = "i_have_hands_place_down_node" }, { pos = v.pos, pitch = math.random(0.7, 1.2), gain = 1 },
+        true)
       local node_sound = core.registered_nodes[v.item].sounds.place.name
       if node_sound ~= nil then
-        core.sound_play({ name = node_sound }, { pos = v.pos,gain = 1 }, true)
+        core.sound_play({ name = node_sound }, { pos = v.pos, gain = 1 }, true)
       end
       core.get_node_timer(v.pos):start(1.0)
       local meta = core.get_meta(v.pos)
@@ -209,10 +211,10 @@ local function animatePlace()
         node_containers[i] = found_container
       end
       meta:from_table(node_containers)
-      
+
       -- MCL_FURANCE set the XP to zero
       if meta:get_int("xp") > 0 then
-        meta:set_int("xp",0)
+        meta:set_int("xp", 0)
       end
 
       --NOTE(COMPAT): this adds support for the storage_drawers mod
@@ -429,13 +431,14 @@ local function hands(itemstack, placer, pointed_thing)
         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
 
         -- NOTE(COMPAT): age of meding support, may break in the future
-        if string.find(core.get_node(pointed_thing.under).name,"aom_storage") then
-          core.swap_node(pointed_thing.under,core.registered_nodes["air"])
+        if string.find(core.get_node(pointed_thing.under).name, "aom_storage") then
+          core.swap_node(pointed_thing.under, core.registered_nodes["air"])
         else
           core.remove_node(pointed_thing.under)
         end
 
-        core.sound_play({ name = "i_have_hands_pickup_node" }, { pos = pointed_thing.under,pitch = math.random(0.7,1.2), gain = 1 }, true)
+        core.sound_play({ name = "i_have_hands_pickup_node" },
+          { pos = pointed_thing.under, pitch = math.random(0.7, 1.2), gain = 1 }, true)
 
         --NOTE(COMPAT): pipeworks update pipe, on pickup
         if core.get_modpath("pipeworks") and pipeworks then
@@ -716,6 +719,69 @@ local function tickHudDelay()
   end
 end
 
+-- local function addIndicator()
+
+-- end
+---@class hud_id
+---@field player_name string
+---@field hud_id number
+
+---@type hud_id[]
+local carrying_inv = {}
+
+local function getCarryingIndicatorId(player_name)
+  for c_i, c_v in ipairs(carrying_inv) do
+    if c_v.player_name == player_name then
+      return c_i
+    end
+  end
+  return nil
+end
+
+local function carryingIndicator()
+  local player = core.get_connected_players()
+  if #player > 0 then
+    for _, p in ipairs(player) do
+      local player_name = p:get_player_name()
+      -- core.log("attached: "..dump(p:get_children()))
+      local is_carying = false
+      for _, value in ipairs(p:get_children()) do
+        local attached_name = value:get_luaentity().name
+        if attached_name == "i_have_hands:held" then
+          is_carying = true
+          -- p:get_luaentity()._carrying_indicator = true
+          -- p:get_luaentity()._carrying_indicator = false
+        end
+      end
+      if is_carying == true then
+        if getCarryingIndicatorId(player_name) == nil then
+          local hud_id = p:hud_add({
+            type = "image",
+            -- position = { x = 0.54, y = 0.54 },
+            position = { x = 0.5, y = 0.6 },
+            -- position = { x = 0.65, y = 0.8 },
+            direction = 0,
+            name = "ihh_carry",
+            scale = { x = 4.5, y = 4.5 },
+            -- text = "crouch & interact to lift this",
+            text = "i_have_hands_indicator.png^[opacity:115",
+            number = "0xFFFFFF",
+            z_index = 0,
+          })
+          local new_hud = { player_name = player_name, hud_id = hud_id }
+          table.insert(carrying_inv, new_hud)
+        end
+      else
+        local hud_index = getCarryingIndicatorId(player_name)
+        if hud_index ~= nil then
+          p:hud_remove(carrying_inv[hud_index].hud_id)
+          table.remove(carrying_inv, hud_index)
+        end
+      end
+      -- core.log("carrying? " .. p:get_luaentity()._carrying_indicator)
+    end
+  end
+end
 
 local ran_once = false
 local tick = 0
@@ -727,6 +793,7 @@ core.register_globalstep(function(dtime)
     raycast()
     hotbarSlotNotEmpty()
     tickHudDelay()
+    carryingIndicator()
     tick = 0
   end
   if ran_once == false then

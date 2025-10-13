@@ -217,6 +217,9 @@ local function animatePlace()
         meta:set_int("xp", 0)
       end
 
+      --wait is all this running for all?
+      -- for pipes it makes sense, not for drawers or amor_stands though
+
       --NOTE(COMPAT): this adds support for the storage_drawers mod
       if core.get_modpath("drawers") and drawers then
         drawers.spawn_visuals(v.pos)
@@ -224,6 +227,21 @@ local function animatePlace()
       --NOTE(COMPAT): pipeworks update pipe, on place down
       if core.get_modpath("pipeworks") and pipeworks then
         pipeworks.after_place(v.pos)
+      end
+      --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on place down
+      if string.find(v.item, "mcl_armor_stand") then
+        if core.get_modpath("mcl_armor_stand") then
+          if core.get_modpath("mcl_armor") and mcl_armor then
+            for _, obj in ipairs(minetest.get_objects_inside_radius(v.pos, 0)) do
+              local luaentity = obj:get_luaentity()
+              if luaentity and luaentity.name == "mcl_armor_stand:armor_entity" then
+                -- luaentity:update_armor()
+                mcl_armor.update(luaentity.object)
+              end
+            end
+          end
+       end
+        --should make the armor stand update it visual.
       end
     end
     v.frame = v.frame + 1
@@ -431,7 +449,9 @@ local function hands(itemstack, placer, pointed_thing)
         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
 
         -- NOTE(COMPAT): age of meding support, may break in the future
-        if string.find(core.get_node(pointed_thing.under).name, "aom_storage") then
+      --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on pickup
+        if string.find(core.get_node(pointed_thing.under).name, "aom_storage") or
+            string.find(core.get_node(pointed_thing.under).name, "mcl_armor_stand") then
           core.swap_node(pointed_thing.under, core.registered_nodes["air"])
         else
           core.remove_node(pointed_thing.under)

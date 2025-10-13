@@ -2,6 +2,10 @@
 
 ## DOING:
 
+- [ ] #LUANTI I_have_hands: sometimes crashes when placing down -> ++
+  - funky stuff seems to happen when the player drops INV node in protected area (switches hotbar or item gets in hotbar slot)
+  - ^^ can be fixed by adding an item to hold hotbar slot
+
 - [ ] (wtf does this mean??) instead of _get_properties_ do **initial_properties**
 - [ ] (was fixed?) #BUG right after loading and trying to lift inv **inv items are safe**
   > item_OnPlace(): /home/surv/.minetest/mods/i_have_hands/init.lua:266: attempt to index a nil value
@@ -38,6 +42,7 @@
 
 ## DONE:
 
+- [x] #LUANTI I_have_hands: bug, picking up armor stands, infinite armor
 - [x] add hud indicator
 - [x] add privs (70% sure anyone can change the allow_all settings)
 - [x] change the banner image

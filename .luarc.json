@@ -4,6 +4,8 @@
         "vector",
         "drawers",
         "pipeworks",
-        "core"
+        "core",
+        "mcl_armor_stand",
+        "mcl_amor"
     ]
 }

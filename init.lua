@@ -1,5 +1,5 @@
-dofile(minetest.get_modpath("i_have_hands") .. "/utils.lua")
-dofile(minetest.get_modpath("i_have_hands") .. "/menu.lua")
+dofile(core.get_modpath("i_have_hands") .. "/utils.lua")
+dofile(core.get_modpath("i_have_hands") .. "/menu.lua")
 
 Allow_all = false --default for only nodes with inventories
 
@@ -7,7 +7,7 @@ Allow_all = false --default for only nodes with inventories
 local RayDistance = 4; --this should be changed to the players reach
 --invs to block
 -- local blacklist = { "furnace", "shulker" } --if the name contains any of
-local blacklist = { "shulker" } --if the name contains any of
+local blacklist = { "shulker", "bedrock" } --if the name contains any of
 
 local data_storage = core.get_mod_storage()
 
@@ -291,7 +291,7 @@ local function find_empty_position(pos, radius)
       local ny = y
 
       while ny < 100 and not found do
-        local node = minetest.get_node({ x = nx, y = ny, z = nz })
+        local node = core.get_node({ x = nx, y = ny, z = nz })
         if node.name == "air" then
           empty_pos = { x = nx, y = ny, z = nz }
           found = true
@@ -452,7 +452,7 @@ local function hands(itemstack, placer, pointed_thing)
   --you know, return itemstack
 end
 
--- local original_on_place = minetest.registered_items[""].on_place
+-- local original_on_place = core.registered_items[""].on_place
 
 core.override_item("", {
   on_place = function(itemstack, placer, pointed_thing)

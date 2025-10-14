@@ -1,5 +1,16 @@
 # CHANGELOG
 
+### 1.10.2:
+
+changelog:
+
+- when placing down an armor stand it will now show its amor. (voxelibre/mineclonia)
+
+bugfix:
+
+- (voxelibre/mineclonia) picking up an armor_stand would result in amor duplication
+
+
 ### 1.10.1:
 
 - added hud indicator (in case the carried inv node does not render)

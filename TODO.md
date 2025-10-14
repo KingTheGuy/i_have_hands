@@ -2,6 +2,11 @@
 
 ## DOING:
 
+- [ ] prevent slot from being filled.
+  * plays into fixing the next bug
+      make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
+      if the player moves to another hotbar.. drop the inventory
+      if when the inventory gets placed down, move over to the previous hotbar.
 - [ ] #LUANTI I_have_hands: sometimes crashes when placing down -> ++
   - funky stuff seems to happen when the player drops INV node in protected area (switches hotbar or item gets in hotbar slot)
   - ^^ can be fixed by adding an item to hold hotbar slot
@@ -29,10 +34,6 @@
 
 - [ ] add dust particle, to play right when the chest angles back down.
 - [ ] prevent switching hotbar slot
-- [ ] prevent slot from being filled.
-      make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
-      if the player moves to another hotbar.. drop the inventory
-      if when the inventory gets placed down, move over to the previous hotbar.
 - [ ] somehow let the player know if a mod is interfering with this mod or just say not its not compatible
 - [ ] better sound effects
 - [ ] rewrite description. carry nodes & blocks that have an inventory without breaking them.

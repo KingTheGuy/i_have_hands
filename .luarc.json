@@ -6,6 +6,7 @@
         "pipeworks",
         "core",
         "mcl_armor_stand",
-        "mcl_amor"
+        "mcl_amor",
+        "mcl_armor"
     ]
 }

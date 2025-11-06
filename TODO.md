@@ -2,11 +2,6 @@
 
 ## DOING:
 
-- [ ] prevent slot from being filled.
-  * plays into fixing the next bug
-      make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
-      if the player moves to another hotbar.. drop the inventory
-      if when the inventory gets placed down, move over to the previous hotbar.
 - [ ] #LUANTI I_have_hands: sometimes crashes when placing down -> ++
   - funky stuff seems to happen when the player drops INV node in protected area (switches hotbar or item gets in hotbar slot)
   - ^^ can be fixed by adding an item to hold hotbar slot
@@ -23,6 +18,13 @@
 - [ ] settings menu, for adjusting hud element
 - [ ] make them throw-able
 - [ ] pick up mobs?
+- [ ] (mayeb not) prevent slot from being filled.
+  * plays into fixing the next bug
+      make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
+      if the player moves to another hotbar.. drop the inventory
+      if when the inventory gets placed down, move over to the previous hotbar.
+  - issue: if i add this, it would have to inherit how "hand" works
+- [ ] __clumsy__.. maybe i make it so that if the player jumps when they are holding something there is a chance they drop it. -> once i added a weight system to it(if i do) maybe make it so that the player has a chance of dropping after holding it for a while.
 - [ ] (may be over kill considering this is a chest re-locating mode)
   - add my own type of orientation fixing item?
   - I can pop open a menu and have the player orient it that way.

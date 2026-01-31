@@ -2,6 +2,17 @@
 
 ## DOING:
 
+- [ ] #BUG (may be a bug?) getting in a boat while holding a chest?
+
+- [ ] #BUG carrying GRAVE, aka protected causes the server to crash.
+```shell
+ServerError: AsyncErr: Lua: Runtime error from mod 'i_have_hands' in callback environment_Step(): i_have_hands/init.lua:190: attempt to index field 'sounds' (a nil value)
+stack traceback:
+         i_have_hands/init.lua:190: in function 'animatePlace'
+         i_have_hands/init.lua:812: in function <i_have_hands/init.lua:808>
+         ...c-luanti-5.14.0/share/luanti/builtin/common/register.lua:27: in function <...c-luanti-5.14.0/share/luanti/builtin/common/register.lua:13>
+```
+
 - [ ] #LUANTI I_have_hands: sometimes crashes when placing down -> ++
   - funky stuff seems to happen when the player drops INV node in protected area (switches hotbar or item gets in hotbar slot)
   - ^^ can be fixed by adding an item to hold hotbar slot

@@ -390,6 +390,7 @@ local function hands(itemstack, placer, pointed_thing)
           return itemstack
         end
         local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
+        -- local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
         -- local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
         -- core.log("bones: "..dump(placer:get_bone_overrides()))
 
@@ -558,13 +559,14 @@ core.register_entity("i_have_hands:held", {
 core.register_entity("i_have_hands:ghost", {
   selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
   pointable = false,
-  physical = false,
-  collide_with_objects = false,
+  physical = true,
+  collide_with_objects = true,
   visual = "mesh",
   mesh = "i_have_hands_ghost.glb",
+  -- mesh = "place_animation.glb",
   -- visual = "item",
   -- wield_item = "",
-  textures = { "i_have_hands_texture.png", },
+  textures = { "blank.png", },
   visual_size = { x = 1, y = 1, z = 1 },
   _initial_pos = "",
   on_step = function(self, dtime, moveresult)

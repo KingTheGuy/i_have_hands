@@ -1,41 +1,17 @@
 ## TODO
 
-## DOING:
-
-- [ ] #BUG (may be a bug?) getting in a boat while holding a chest?
-
-- [ ] #BUG carrying GRAVE, aka protected causes the server to crash.
-```shell
-ServerError: AsyncErr: Lua: Runtime error from mod 'i_have_hands' in callback environment_Step(): i_have_hands/init.lua:190: attempt to index field 'sounds' (a nil value)
-stack traceback:
-         i_have_hands/init.lua:190: in function 'animatePlace'
-         i_have_hands/init.lua:812: in function <i_have_hands/init.lua:808>
-         ...c-luanti-5.14.0/share/luanti/builtin/common/register.lua:27: in function <...c-luanti-5.14.0/share/luanti/builtin/common/register.lua:13>
-```
-
-- [ ] #LUANTI I_have_hands: sometimes crashes when placing down -> ++
-  - funky stuff seems to happen when the player drops INV node in protected area (switches hotbar or item gets in hotbar slot)
-  - ^^ can be fixed by adding an item to hold hotbar slot
-
-- [ ] (wtf does this mean??) instead of _get_properties_ do **initial_properties**
-- [ ] (was fixed?) #BUG right after loading and trying to lift inv **inv items are safe**
-  > item_OnPlace(): /home/surv/.minetest/mods/i_have_hands/init.lua:266: attempt to index a nil value
-  > stack traceback:[C]: ?
-  > /home/surv/.minetest/mods/i_have_hands/init.lua:266: in function 'hands'
-  > /home/surv/.minetest/mods/i_have_hands/init.lua:373: in function </home/surv/.minetest/mods/i_have_hands/init.lua:371>
-
 ## BACKLOG:
 
 - [ ] settings menu, for adjusting hud element
 - [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (mayeb not) prevent slot from being filled.
-  * plays into fixing the next bug
-      make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
-      if the player moves to another hotbar.. drop the inventory
-      if when the inventory gets placed down, move over to the previous hotbar.
-  - issue: if i add this, it would have to inherit how "hand" works
-- [ ] __clumsy__.. maybe i make it so that if the player jumps when they are holding something there is a chance they drop it. -> once i added a weight system to it(if i do) maybe make it so that the player has a chance of dropping after holding it for a while.
+  - plays into fixing the next bug
+    make it so that when an inventory gets picked up a new, un fillable hot bar container gets created.
+    if the player moves to another hotbar.. drop the inventory
+    if when the inventory gets placed down, move over to the previous hotbar.
+  * issue: if i add this, it would have to inherit how "hand" works
+- [ ] **clumsy**.. maybe i make it so that if the player jumps when they are holding something there is a chance they drop it. -> once i added a weight system to it(if i do) maybe make it so that the player has a chance of dropping after holding it for a while.
 - [ ] (may be over kill considering this is a chest re-locating mode)
   - add my own type of orientation fixing item?
   - I can pop open a menu and have the player orient it that way.
@@ -54,6 +30,33 @@ stack traceback:
 - [ ] #BUG (can't be reset till the player respawns) reset the arm on death.. or whenever the chest is dropped (same logic)
 - [ ] (NOPE.. there is no need for that, and it breaks things) add support for shulkers
 
+## DOING:
+
+note: function place_node() seems to be broken, use item_place_node()
+
+- [ ] raycast:
+  - [x] raycast objects too, but ignore self.
+    - reason is drawers mod, need to be able to sneak + click to do functions
+  - [ ] cleanup and comments
+
+- [x] placing, needs to also take into account grass/placeable on
+- [ ] protection, need to handle that
+- [ ] voxelibre chests need to make sure they update after being placed (visual reasons)
+
+- [ ] handle save/loading
+  - [x] loads
+  - [x] saves
+  - [ ] there may be an issue if the inv has USERDATA
+  - [ ] when leaving/join
+  - [ ] when picking up & putting down (to make sure no data will be lost)
+
+- [ ] putdown when:
+  - [ ] player leaves
+  - [ ] player ides
+
+- [ ] putDownInv, make sure placed node matches before setting its meta
+- [ ] putDownInv, make copy of previus node revert to it if prev message applies
+
 ## DONE:
 
 - [x] #LUANTI I_have_hands: bug, picking up armor stands, infinite armor
@@ -71,4 +74,4 @@ stack traceback:
 - [x] add CHANGELOG file
 - [x] hud_elem_type to type
 - [x] have two entities main one will handle the animation
-  - second one will handle displaying the *held inventory
+  - second one will handle displaying the \*held inventory

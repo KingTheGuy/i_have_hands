@@ -1,5 +1,9 @@
-dofile(core.get_modpath("i_have_hands") .. "/utils.lua")
-dofile(core.get_modpath("i_have_hands") .. "/menu.lua")
+local mod_name = core.get_current_modname()
+local mod_path = core.get_modpath(mod_name)
+
+I_have_hands = {}
+
+-- local mod_storage = core.get_mod_storage()
 
 Allow_all = false --default for only nodes with inventories
 
@@ -9,7 +13,16 @@ local RayDistance = 4; --this should be changed to the players reach
 -- local blacklist = { "furnace", "shulker" } --if the name contains any of
 local blacklist = { "shulker", "bedrock" } --if the name contains any of
 
-local data_storage = core.get_mod_storage()
+---@class holder
+---@field inv table
+---@field node table
+---@field pressed_button boolean
+---@field node_timer table
+I_have_hands.Player_data = {}
+
+dofile(mod_path .. "/utils.lua")
+dofile(mod_path .. "/menu.lua")
+dofile(mod_path .. "/data.lua")
 
 ---@class Animate
 ---@field player table The damn player
@@ -18,6 +31,361 @@ local data_storage = core.get_mod_storage()
 ---@field frame integer Not sure if frame is the correct term here
 ---@field item_name string This is probabliy the only thing that is correct
 local to_animate = {}
+
+--what do i need?
+-- held inv data
+-- player_name
+-- pressed_button boolean
+
+---comment
+---@param player_name string
+---@return holder
+local function getPlayerData(player_name)
+  I_have_hands.Player_data[player_name] = I_have_hands.Player_data[player_name] or {}
+  return I_have_hands.Player_data[player_name]
+end
+
+local function runCompat(pos)
+  core.log("compatibility stuff")
+  local node = core.get_node(pos)
+  local node_meta = core.get_meta(pos)
+  local node_def = core.registered_nodes[node.name]
+  local mod_origin = node_def.mod_origin
+
+  -- -- MCL_FURANCE set the XP to zero
+  -- if node_meta:get_int("xp") > 0 then
+  --   node_meta:set_int("xp", 0)
+  -- end
+
+  --NOTE(COMPAT): this adds support for the storage_drawers mod
+  if core.get_modpath("drawers") and drawers then
+    if mod_origin == "drawers" then
+      drawers.spawn_visuals(pos)
+    end
+  end
+
+  --NOTE(COMPAT): pipeworks update pipe, on pickup
+  if core.get_modpath("pipeworks") and pipeworks then
+    -- if mod_origin == "pipeworks" then
+    pipeworks.after_place(pos)
+    -- end
+  end
+
+  --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on place down
+  if core.get_modpath("mcl_armor_stand") then
+    if mod_origin == "mcl_armor_stand" then
+      core.log("yes armor")
+      if core.get_modpath("mcl_armor") and mcl_armor then
+        for _, obj in ipairs(minetest.get_objects_inside_radius(pos, 0)) do
+          local luaentity = obj:get_luaentity()
+          if luaentity and luaentity.name == "mcl_armor_stand:armor_entity" then
+            -- luaentity:update_armor()
+            mcl_armor.update(luaentity.object)
+          end
+        end
+      end
+    end
+    --should make the armor stand update it visual.
+  end
+end
+
+---comment
+---@param p_name string
+---@param pointed_thing table
+local function pickupInv(p_name, pointed_thing)
+  pointed_thing = pointed_thing.under
+  local p_data = getPlayerData(p_name)
+  local node = core.get_node(pointed_thing)
+  local meta = core.get_meta(pointed_thing)
+  -- core.log("interacted node: " .. core.colorize("#932222", dump(node)))
+  -- core.log("meta:" .. dump(meta:to_table()))
+  local inv = meta:get_inventory()
+  if inv ~= nil then
+    core.log(core.colorize("#954823", "node: " .. node.name))
+    local at_least_one = 0
+    for inv_name, inv_content in pairs(inv:get_lists()) do
+      at_least_one = at_least_one + 1
+      -- core.log("inv: " .. dump(inv_name))
+    end
+    ---FIXME: this is where the option to allow pickup up normal nodes should be done
+    if at_least_one <= 0 then
+      return
+    end
+    local node_def = core.registered_nodes[node.name]
+    p_data.node = node
+    -- if node_def.drop ~= node.name then
+    --   p_data.node =node_def.drop
+    -- end
+    p_data.inv = meta:to_table()
+    p_data.node_timer = core.get_node_timer(pointed_thing)
+    core.remove_node(pointed_thing)
+    Data.save_data()
+    -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
+    -- core.swap_node(pos, core.registered_nodes["air"])
+    -- core.swap_node(pos, {name = "air"})
+    core.sound_play({ name = "i_have_hands_pickup_node" },
+      { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
+    runCompat(pointed_thing)
+
+    -- core.add_item(pos, ItemStack(node.name))
+  end
+end
+
+local function putDownInv(p_name, pointed_thing)
+  -- core.log("put down")
+  local p_data = getPlayerData(p_name)
+  local p_ref = core.get_player_by_name(p_name)
+
+  --FIXME: make sure spot is empty
+  ---make sure node can be placed down
+  local node_in_pos = core.get_node(pointed_thing.above)
+  local node_in_pos_def = core.registered_nodes[node_in_pos.name]
+  if node_in_pos_def.buildable_to then
+    --   -- lets allow it
+  elseif node_in_pos.name ~= "air" then
+    core.log("not air")
+    return
+  end
+
+  --NOTE: the rotation
+  p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
+
+  ---ISSUE: place_node does not place it at pos
+  --the fix: something about map-block/node coordinate posistion
+  --FIXME: nope it's still broken
+  -- core.place_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 }, p_ref)
+  local stack, placed_pos = core.item_place_node(ItemStack(p_data.node.name), p_ref, pointed_thing)
+
+  -- core.set_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 })
+
+  local meta = core.get_meta(pointed_thing.above)
+  meta:from_table(p_data.inv)
+  local node_def = core.registered_nodes[p_data.node.name]
+  -- core.log(core.colorize("#938731", dump(node_def)))
+  if node_def ~= nil then
+    if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
+      core.get_node_timer(pointed_thing.above):start(p_data.node_timer:get_timeout())
+      -- core.get_node_timer(pos):set(p_data.node_timer:get_timeout(),p_data.node_timer:get_elapsed())
+      -- n_timer = p_data.node_timer
+      -- n_timer:start(n_timer:get_timeout())
+    end
+  end
+  runCompat(pointed_thing.above)
+
+  --- make sure its been placed
+  local check_node = core.get_node(pointed_thing.above)
+  if check_node.name ~= p_data.node.name then
+    core.log("node name: " .. check_node.name)
+    core.log("something went wrong")
+    core.log("pos" .. dump(pointed_thing))
+    core.log("item_place_node: " .. dump(placed_pos))
+    core.log("is player nil? " .. dump(p_ref))
+    return
+  end
+
+  ---FIXME: these may need to be canceled, so check for that
+  core.sound_play({ name = "i_have_hands_place_down_node" },
+    { pos = pointed_thing.above, pitch = math.random(0.7, 1.2), gain = 1 },
+    true)
+  p_data.node = nil
+  p_data.node_timer = nil
+  p_data.inv = nil -- clear it
+  Data.save_data()
+end
+
+
+core.register_on_leaveplayer(function(player_ref, timed_out)
+  local p_name = player_ref:get_player_name()
+  local p_data = getPlayerData(p_name)
+  local p_pos = player_ref:get_pos()
+  if p_data.inv ~= nil then
+    putDownInv(p_name, p_pos)
+  end
+end)
+
+core.register_on_dieplayer(function(player_ref, reason)
+  local p_name = player_ref:get_player_name()
+  local p_data = getPlayerData(p_name)
+  local p_pos = player_ref:get_pos()
+  p_pos = vector.new(math.floor(p_pos.x + 0.5), math.floor(p_pos.y + 0.5), math.floor(p_pos.z + 0.5))
+  if p_pos == nil then
+    core.log("fucked")
+    return
+  end
+  local place_pos = vector.new(p_pos.x, p_pos.y, p_pos.z)
+  if p_data.inv ~= nil then
+    putDownInv(p_name, { above = place_pos, under = place_pos })
+  end
+end)
+
+
+--- INDICATOR
+local player_hud_id = {}
+
+local function getPlayerHud(player_name)
+  -- core.debug("player_huds are " .. #player_hud_id .. " in length.")
+  for _, ph in ipairs(player_hud_id) do
+    if ph.player_name == player_name then
+      if ph.player_hud == nil then return nil end
+      return ph.player_hud
+    end
+  end
+end
+
+local function getPlayerFromPlayerHuds(player_name)
+  for _, ph in ipairs(player_hud_id) do
+    if ph.player_name == player_name then
+      return ph
+    end
+  end
+  return nil
+end
+
+local function carryableIdicator(p, pos)
+  local hud_id = getPlayerHud(p:get_player_name())
+  local player_with_hud = getPlayerFromPlayerHuds(p:get_player_name())
+  if player_with_hud == nil then
+    local this_players_hud = {
+      player_name = p:get_player_name(),
+      player_hud = hud_id,
+      hud_delay = 6,
+      chest_location = pos
+    }
+    table.insert(player_hud_id, this_players_hud)
+  else
+    -- core.debug("what do we have here? "..player_with_hud.hud_delay)
+    if player_with_hud.hud_delay == 0 then
+      if hud_id == nil then
+        hud_id = p:hud_add({
+          type = "text",
+          position = { x = 0.5, y = 0.6 },
+          direction = 0,
+          name = "ihh",
+          scale = { x = 1, y = 1 },
+          -- text = "crouch & interact to lift this",
+          text = "carry: crouch & interact",
+          number = "0xFFFFFF",
+          z_index = 0,
+        })
+      end
+      player_with_hud.player_hud = hud_id
+    end
+    -- if player_with_hud.chest_location ~= raycast_result.under then
+    --   removePlayerHud(p)
+    -- end
+  end
+end
+
+
+
+local started = false
+
+core.register_globalstep(function(dtime)
+  if started == false then --- run this once
+    started = true
+    Data.load_data()
+  end
+
+  local all_players = core.get_connected_players()
+  for _, player in pairs(all_players) do
+    local p_control = player:get_player_control()
+
+    --- (for debugging) lets see what is being pressed
+    local log_controls = function()
+      for key, value in pairs(p_control) do
+        if value == true then
+          core.log(string.format("%s : %s", dump(key), dump(value)))
+        end
+      end
+    end
+    -- log_controls()
+
+    local reach = RayDistance
+    local item = player:get_wielded_item()
+    local item_reach = item:get_meta().range
+    if item_reach ~= nil then
+      reach = item_reach
+    end
+    local p_name = player:get_player_name()
+    -- core.log("item reach range: "..dump())
+
+    local p_data = getPlayerData(p_name)
+
+    -- carryableIdicator(player,pointed_thing)
+
+    if p_control.place == true then
+      if item:get_name() ~= "" then
+        -- core.log("only work with empty hand")
+        return
+      end
+      if p_data.pressed_button ~= true then -- only just on the first click
+        p_data.pressed_button = true
+        if p_control.sneak == true then     -- must be sneaking (as if to reach down for it)
+          -- start at player eye_height, end at raycast
+          local p_dir = player:get_look_dir()
+          local p_eye_height = player:get_properties().eye_height
+          local p_pos = player:get_pos()
+          p_pos.y = p_pos.y + p_eye_height -- take eye_height into account
+          local new_pos = p_dir:multiply(reach):add(p_pos)
+
+          local ray = Raycast(p_pos, new_pos, true, false, nil)
+
+          ---FIXME: I AM HERE!!
+          local pointed_thing = nil
+          local object_in_way = false
+
+          for point in ray do
+            if point.type == "object" and point.ref == player then
+              core.log("opp this is me, lets skip and go next")
+            else
+              if point.type == "node" and pointed_thing == nil then
+                core.log(core.colorize("#917392", "pointed: " .. dump(point)))
+                pointed_thing = point
+              end
+              if point.type == "object" and pointed_thing == nil then
+                object_in_way = true
+              end
+            end
+          end
+
+          if object_in_way == true then
+            core.log("seems like there is a block")
+            return
+          end
+
+          if pointed_thing then
+            if pointed_thing.ref and pointed_thing.ref == player then
+              -- if pointed_thing.type == "object" then
+              --   core.log("pointed: " .. dump(pointed_thing))
+              --   return
+              -- end
+              core.log("oop this is me")
+              return
+            end
+            if p_data.inv == nil then
+              core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              if pointed_thing.under then
+                -- core.log("player data: " .. dump(p_data))
+                pickupInv(p_name, pointed_thing)
+              end
+            else
+              core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              -- else we place it down
+
+              if pointed_thing.above then
+                core.log("placing at: " .. dump(pointed_thing.above))
+                putDownInv(p_name, pointed_thing)
+              end
+            end
+          end
+          --- check that hand is empty
+        end
+      end
+    else
+      p_data.pressed_button = false
+    end
+  end
+end)
 
 ---@param this_string string the string
 ---@param split string sub to split at
@@ -240,7 +608,7 @@ local function animatePlace()
               end
             end
           end
-       end
+        end
         --should make the armor stand update it visual.
       end
     end
@@ -322,174 +690,174 @@ local function find_empty_position(pos, radius)
   return empty_pos
 end
 
-local handdef = core.registered_items[""]
-local on_place = handdef and handdef.on_place
+-- local handdef = core.registered_items[""]
+-- local on_place = handdef and handdef.on_place
 
-local function hands(itemstack, placer, pointed_thing)
-  local contains = false
-  if placer:get_player_control()["sneak"] == true then
-    -- core.debug("what is this?",core.get_node(pointed_thing.under).name)
-    -- core.debug(string.format("location: %s", dump(core.get_modpath("drawers"))))
-    -- core.debug(core.colorize("yellow", "howdy mate, ive got the shits"))
-    if #placer:get_children() > 0 then --this is getting all connect objects
-      for index, obj in pairs(placer:get_children()) do
-        -- core.debug(dump(obj:get_luaentity().name))
-        -- core.debug("got something: "..obj.name)
-        -- end
-        -- for index, value in pairs(placer:get_children()) do
-        local above = pointed_thing.above
-        -- core.debug("node: "..core.get_node(above).name)
-        if checkProtection(above, placer) == false then
-          if obj:get_luaentity().name == "i_have_hands:held" then
-            contains = true
-            -- core.debug("ok: "..type(held).."-"..held.."-")
-            local try_inside = core.registered_nodes[core.get_node(pointed_thing.under).name]
-            -- core.debug("buildabled? ",try_inside.buildable_to)
-            if core.get_node(above).name ~= "air" then
-              -- if core.get_node(above).name == "water" then
-              if utils.StringContains(core.get_node(above).name, "water") then
-                --do nothing
-              else
-                return itemstack
-              end
-            end
-            if #core.get_objects_inside_radius(above, 0.5) > 0 then
-              return itemstack
-            end
-            if try_inside.buildable_to == true then
-              above = pointed_thing.under
-            end
+-- local function hands(itemstack, placer, pointed_thing)
+--   local contains = false
+--   if placer:get_player_control()["sneak"] == true then
+--     -- core.debug("what is this?",core.get_node(pointed_thing.under).name)
+--     -- core.debug(string.format("location: %s", dump(core.get_modpath("drawers"))))
+--     -- core.debug(core.colorize("yellow", "howdy mate, ive got the shits"))
+--     if #placer:get_children() > 0 then --this is getting all connect objects
+--       for index, obj in pairs(placer:get_children()) do
+--         -- core.debug(dump(obj:get_luaentity().name))
+--         -- core.debug("got something: "..obj.name)
+--         -- end
+--         -- for index, value in pairs(placer:get_children()) do
+--         local above = pointed_thing.above
+--         -- core.debug("node: "..core.get_node(above).name)
+--         if checkProtection(above, placer) == false then
+--           if obj:get_luaentity().name == "i_have_hands:held" then
+--             contains = true
+--             -- core.debug("ok: "..type(held).."-"..held.."-")
+--             local try_inside = core.registered_nodes[core.get_node(pointed_thing.under).name]
+--             -- core.debug("buildabled? ",try_inside.buildable_to)
+--             if core.get_node(above).name ~= "air" then
+--               -- if core.get_node(above).name == "water" then
+--               if utils.StringContains(core.get_node(above).name, "water") then
+--                 --do nothing
+--               else
+--                 return itemstack
+--               end
+--             end
+--             if #core.get_objects_inside_radius(above, 0.5) > 0 then
+--               return itemstack
+--             end
+--             if try_inside.buildable_to == true then
+--               above = pointed_thing.under
+--             end
 
 
-            local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
-            -- local player_p = core.dir_to_fourdir(placer:get_look_dir())
-            -- obj:set_pos(above)
-            -- animatePlace(obj,above)
+--             local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+--             -- local player_p = core.dir_to_fourdir(placer:get_look_dir())
+--             -- obj:set_pos(above)
+--             -- animatePlace(obj,above)
 
-            -- table.insert(to_animate,
-            --   { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
-            local rot = quantize_direction(placer:get_look_horizontal())
-            placeDown(placer, rot, obj, above, 0, held_item_name)
-          end
-        end
-      end
-    end
+--             -- table.insert(to_animate,
+--             --   { player = placer, rot = rot, obj = obj, pos = above, frame = 0, item = held_item_name })
+--             local rot = quantize_direction(placer:get_look_horizontal())
+--             placeDown(placer, rot, obj, above, 0, held_item_name)
+--           end
+--         end
+--       end
+--     end
 
-    if contains == false then
-      local is_blacklisted = false
+--     if contains == false then
+--       local is_blacklisted = false
 
-      if isBlacklisted(pointed_thing.under) then
-        is_blacklisted = true
-      end
-      if is_blacklisted == false then
-        if checkProtection(pointed_thing.under, placer) then
-          return itemstack
-        end
-        local meta = core.get_meta(pointed_thing.under)
-        if isInventory(meta) == false then
-          return itemstack
-        end
-        local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
-        -- local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
-        -- local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
-        -- core.log("bones: "..dump(placer:get_bone_overrides()))
+--       if isBlacklisted(pointed_thing.under) then
+--         is_blacklisted = true
+--       end
+--       if is_blacklisted == false then
+--         if checkProtection(pointed_thing.under, placer) then
+--           return itemstack
+--         end
+--         local meta = core.get_meta(pointed_thing.under)
+--         if isInventory(meta) == false then
+--           return itemstack
+--         end
+--         local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
+--         -- local obj = core.add_entity(placer:get_pos(), "i_have_hands:held")
+--         -- local ghost = core.add_entity(placer:get_pos(), "i_have_hands:ghost")
+--         -- core.log("bones: "..dump(placer:get_bone_overrides()))
 
-        obj:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
-        -- obj:set_attach(placer, "armR", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+--         obj:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+--         -- obj:set_attach(placer, "armR", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
 
-        -- obj:set_attach(ghost, "", { x = 0, y = 4, z = -3.4 }, { x = 0, y = 0, z = 0 }, true)
-        -- ghost:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
-        -- obj:set_attach(placer, "Arm_Right", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
-        -- core.log(core.colorize("red","attach: "..dump(placer:get_bone_override("Arm_Right"))))
-        placer:set_bone_override("Arm_Right",
-          { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
-        placer:set_bone_override("Arm_Left",
-          { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
-        --NOTE: attaching to the head just does not look very good, so lets not do that.
-        -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
-        obj:set_properties({
-          wield_item = core.registered_nodes[core.get_node(pointed_thing.under).name]
-              .name
-        })
-        obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
+--         -- obj:set_attach(ghost, "", { x = 0, y = 4, z = -3.4 }, { x = 0, y = 0, z = 0 }, true)
+--         -- ghost:set_attach(placer, "Body", { x = 0, y = 4, z = -3.4 }, { x = 0, y = math.rad(90), z = 0 }, true)
+--         -- obj:set_attach(placer, "Arm_Right", { x = 0, y = 9, z = 3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+--         -- core.log(core.colorize("red","attach: "..dump(placer:get_bone_override("Arm_Right"))))
+--         placer:set_bone_override("Arm_Right",
+--           { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
+--         placer:set_bone_override("Arm_Left",
+--           { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
+--         --NOTE: attaching to the head just does not look very good, so lets not do that.
+--         -- obj:set_attach(placer, "Head", { x = 0, y = -2, z = -3.2 }, { x = 0, y = math.rad(90), z = 0 }, true)
+--         obj:set_properties({
+--           wield_item = core.registered_nodes[core.get_node(pointed_thing.under).name]
+--               .name
+--         })
+--         obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
-        --NOTE(COMPAT): this takes care of voxelibre chests
-        if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
-          obj:set_properties({ wield_item = "mcl_chests:chest" })
-          -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
-          -- if drawtype == "mesh" then
-          --   obj:set_properties({ wield_item = "mcl_chests:chest" })
-          -- end
-          -- obj:set_properties({ wield_item = "mcl_chests:"..name })
-        end
+--         --NOTE(COMPAT): this takes care of voxelibre chests
+--         if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
+--           obj:set_properties({ wield_item = "mcl_chests:chest" })
+--           -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
+--           -- if drawtype == "mesh" then
+--           --   obj:set_properties({ wield_item = "mcl_chests:chest" })
+--           -- end
+--           -- obj:set_properties({ wield_item = "mcl_chests:"..name })
+--         end
 
-        -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
-        -- core.debug(core.colorize("blue", "all: \n" .. dump(meta:to_table())))
-        local node_containers = {}
-        for i, v in pairs(meta:to_table()) do
-          local found_container = {}
-          for container, container_items in pairs(v) do
-            local found_inv = {}
-            if type(container_items) == "table" then
-              for slot, item in pairs(container_items) do
-                table.insert(found_inv, slot, item:to_string())
-              end
-              found_container[container] = found_inv
-            else
-              found_container[container] = container_items
-            end
-          end
-          node_containers[i] = found_container
-        end
-        local full_data = { node = core.get_node(pointed_thing.under), data = node_containers }
-        -- core.debug("full_data: ".. dump(full_data.data))
+--         -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
+--         -- core.debug(core.colorize("blue", "all: \n" .. dump(meta:to_table())))
+--         local node_containers = {}
+--         for i, v in pairs(meta:to_table()) do
+--           local found_container = {}
+--           for container, container_items in pairs(v) do
+--             local found_inv = {}
+--             if type(container_items) == "table" then
+--               for slot, item in pairs(container_items) do
+--                 table.insert(found_inv, slot, item:to_string())
+--               end
+--               found_container[container] = found_inv
+--             else
+--               found_container[container] = container_items
+--             end
+--           end
+--           node_containers[i] = found_container
+--         end
+--         local full_data = { node = core.get_node(pointed_thing.under), data = node_containers }
+--         -- core.debug("full_data: ".. dump(full_data.data))
 
-        local pos = vector.to_string(obj:get_pos())
-        data_storage:set_string(pos, core.serialize(full_data))
-        obj:get_luaentity().initial_pos = pos
-        -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
+--         local pos = vector.to_string(obj:get_pos())
+--         data_storage:set_string(pos, core.serialize(full_data))
+--         obj:get_luaentity().initial_pos = pos
+--         -- placer:get_meta():set_string("obj_obj",core.write_json(obj))
 
-        -- NOTE(COMPAT): age of meding support, may break in the future
-      --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on pickup
-        if string.find(core.get_node(pointed_thing.under).name, "aom_storage") or
-            string.find(core.get_node(pointed_thing.under).name, "mcl_armor_stand") then
-          core.swap_node(pointed_thing.under, core.registered_nodes["air"])
-        else
-          core.remove_node(pointed_thing.under)
-        end
+--         -- NOTE(COMPAT): age of meding support, may break in the future
+--         --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on pickup
+--         if string.find(core.get_node(pointed_thing.under).name, "aom_storage") or
+--             string.find(core.get_node(pointed_thing.under).name, "mcl_armor_stand") then
+--           core.swap_node(pointed_thing.under, core.registered_nodes["air"])
+--         else
+--           core.remove_node(pointed_thing.under)
+--         end
 
-        core.sound_play({ name = "i_have_hands_pickup_node" },
-          { pos = pointed_thing.under, pitch = math.random(0.7, 1.2), gain = 1 }, true)
+--         core.sound_play({ name = "i_have_hands_pickup_node" },
+--           { pos = pointed_thing.under, pitch = math.random(0.7, 1.2), gain = 1 }, true)
 
-        --NOTE(COMPAT): pipeworks update pipe, on pickup
-        if core.get_modpath("pipeworks") and pipeworks then
-          pipeworks.after_place(pointed_thing.under)
-        end
+--         --NOTE(COMPAT): pipeworks update pipe, on pickup
+--         if core.get_modpath("pipeworks") and pipeworks then
+--           pipeworks.after_place(pointed_thing.under)
+--         end
 
-        -- core.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
-      end
-    end
-  end
-  --you know, return itemstack
-end
+--         -- core.sound_play({ name = "i_have_hands_pickup" }, { pos = pointed_thing.under,gain = 0.1}, true)
+--       end
+--     end
+--   end
+--   --you know, return itemstack
+-- end
 
 -- local original_on_place = core.registered_items[""].on_place
 
-core.override_item("", {
-  on_place = function(itemstack, placer, pointed_thing)
-    itemstack = on_place(itemstack, placer, pointed_thing)
-    hands(itemstack, placer, pointed_thing)
+-- core.override_item("", {
+--   on_place = function(itemstack, placer, pointed_thing)
+--     itemstack = on_place(itemstack, placer, pointed_thing)
+--     hands(itemstack, placer, pointed_thing)
 
-    -- Call the original on_place function if it exists
-    -- if original_on_place then
-    --   return original_on_place(itemstack, placer, pointed_thing)
-    -- end
-    return itemstack
-  end,
-  -- on_secondary_use = function(itemstack, placer, pointed_thing)
-  --   hands(itemstack, placer, pointed_thing)
-  -- end
-})
+--     -- Call the original on_place function if it exists
+--     -- if original_on_place then
+--     --   return original_on_place(itemstack, placer, pointed_thing)
+--     -- end
+--     return itemstack
+--   end,
+--   -- on_secondary_use = function(itemstack, placer, pointed_thing)
+--   --   hands(itemstack, placer, pointed_thing)
+--   -- end
+-- })
 
 --check if the player is holding an inventory
 local function isHolding(player)
@@ -608,27 +976,6 @@ core.register_entity("i_have_hands:ghost", {
     -- end
   end,
 })
-
-local player_hud_id = {}
-
-local function getPlayerFromPlayerHuds(player_name)
-  for _, ph in ipairs(player_hud_id) do
-    if ph.player_name == player_name then
-      return ph
-    end
-  end
-  return nil
-end
-
-local function getPlayerHud(player_name)
-  -- core.debug("player_huds are " .. #player_hud_id .. " in length.")
-  for _, ph in ipairs(player_hud_id) do
-    if ph.player_name == player_name then
-      if ph.player_hud == nil then return nil end
-      return ph.player_hud
-    end
-  end
-end
 
 local function removePlayerHud(player)
   local hud_id = getPlayerHud(player:get_player_name())
@@ -805,40 +1152,40 @@ local function carryingIndicator()
   end
 end
 
-local ran_once = false
-local tick = 0
-core.register_globalstep(function(dtime)
-  -- raycast()
-  tick = tick + 0.5
-  if tick > 2 then
-    animatePlace()
-    raycast()
-    hotbarSlotNotEmpty()
-    tickHudDelay()
-    carryingIndicator()
-    tick = 0
-  end
-  if ran_once == false then
-    ran_once = true
-    for i, v in pairs(data_storage:get_keys()) do
-      local pos = vector.from_string(v)
-      core.set_node(pos, core.deserialize(data_storage:get_string(v))["node"])
-      local meta = core.get_meta(pos)
-      meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
-      data_storage:set_string(v, "")
-    end
-  end
-end)
+-- local ran_once = false
+-- local tick = 0
+-- core.register_globalstep(function(dtime)
+--   -- raycast()
+--   tick = tick + 0.5
+--   if tick > 2 then
+--     animatePlace()
+--     raycast()
+--     hotbarSlotNotEmpty()
+--     tickHudDelay()
+--     carryingIndicator()
+--     tick = 0
+--   end
+--   if ran_once == false then
+--     ran_once = true
+--     for i, v in pairs(data_storage:get_keys()) do
+--       local pos = vector.from_string(v)
+--       core.set_node(pos, core.deserialize(data_storage:get_string(v))["node"])
+--       local meta = core.get_meta(pos)
+--       meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+--       data_storage:set_string(v, "")
+--     end
+--   end
+-- end)
 
 
-core.register_on_dieplayer(function(ObjectRef, reason)
-  if #ObjectRef:get_children() > 0 then --this is getting all connect objects
-    for index, obj in pairs(ObjectRef:get_children()) do
-      if obj:get_luaentity().name == "i_have_hands:held" then
-        local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
-        placeDown(ObjectRef, 0, obj, find_empty_position(ObjectRef:get_pos(), 10), 0, held_item_name)
-      end
-    end
-  end
-  -- core.debug("what death? " .. ObjectRef:get_player_name())
-end)
+-- core.register_on_dieplayer(function(ObjectRef, reason)
+--   if #ObjectRef:get_children() > 0 then --this is getting all connect objects
+--     for index, obj in pairs(ObjectRef:get_children()) do
+--       if obj:get_luaentity().name == "i_have_hands:held" then
+--         local held_item_name = core.registered_nodes[obj:get_properties().wield_item].name
+--         placeDown(ObjectRef, 0, obj, find_empty_position(ObjectRef:get_pos(), 10), 0, held_item_name)
+--       end
+--     end
+--   end
+--   -- core.debug("what death? " .. ObjectRef:get_player_name())
+-- end)

@@ -34,6 +34,9 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
+- [ ] indicator
+  - would need to constantly look up the looked at node for an inventory
+
 - [ ] raycast:
   - [x] raycast objects too, but ignore self.
     - reason is drawers mod, need to be able to sneak + click to do functions
@@ -43,19 +46,21 @@ note: function place_node() seems to be broken, use item_place_node()
 - [ ] protection, need to handle that
 - [ ] voxelibre chests need to make sure they update after being placed (visual reasons)
 
-- [ ] handle save/loading
-  - [x] loads
-  - [x] saves
-  - [ ] there may be an issue if the inv has USERDATA
-  - [ ] when leaving/join
-  - [ ] when picking up & putting down (to make sure no data will be lost)
-
 - [ ] putdown when:
+  - what I am currently trying is kinda broken
   - [ ] player leaves
   - [ ] player ides
 
 - [ ] putDownInv, make sure placed node matches before setting its meta
 - [ ] putDownInv, make copy of previus node revert to it if prev message applies
+
+- [x] handle save/loading
+  - [x] loads
+  - [x] saves
+  - [ ] there may be an issue if the inv has USERDATA
+  - [x] when leaving
+  - [x] on world load
+  - [x] when picking up & putting down (to make sure no data will be lost)
 
 ## DONE:
 

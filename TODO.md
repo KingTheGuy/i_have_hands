@@ -34,9 +34,17 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
+- [ ] start cleaning up...
+
+- [ ] this is so broken!!
+  - [ ] can't use core.remove_node() because it sometimes causes from invs to drop their things, which then dupe.
+  - [ ] picking up some node types breaks placing (for sure something to do with core.item_place_node(), and the node maybe not being placeable by normal means)
+
 - [ ] issue with placement
   - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata
   - [ ] save the node that was previously there, undo placement if error happens
+  - [ ] #FIXME someone with putdowninv is broken causing multiple to be placeable
+  - [ ] #FIXME pipeworks. seem to be able to pickup pipes; is this normal or did it break while trying to place a inv node there.
 
 - [x] indicator
   - would need to constantly look up the looked at node for an inventory

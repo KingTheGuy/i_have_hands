@@ -25,6 +25,7 @@ I_have_hands.Player_data = {}
 dofile(mod_path .. "/utils.lua")
 dofile(mod_path .. "/menu.lua")
 dofile(mod_path .. "/data.lua")
+dofile(mod_path .. "/commands.lua")
 
 ---@class Animate
 ---@field player table The damn player
@@ -48,7 +49,7 @@ local function getPlayerData(player_name)
 end
 
 local function runCompat(pos)
-  core.log("compatibility stuff")
+  -- core.log("compatibility stuff")
   local node = core.get_node(pos)
   local node_meta = core.get_meta(pos)
   local node_def = core.registered_nodes[node.name]
@@ -76,7 +77,7 @@ local function runCompat(pos)
   --NOTE(COMPAT): armor_stand(voxelibre & mineclonia) on place down
   if core.get_modpath("mcl_armor_stand") then
     if mod_origin == "mcl_armor_stand" then
-      core.log("yes armor")
+      -- core.log("yes armor")
       if core.get_modpath("mcl_armor") and mcl_armor then
         for _, obj in ipairs(minetest.get_objects_inside_radius(pos, 0)) do
           local luaentity = obj:get_luaentity()
@@ -94,37 +95,38 @@ end
 ---comment
 ---@param p_name string
 ---@param pointed_thing table
-local function pickupInv(p_name, pointed_thing)
+function I_have_hands.pickupInv(p_name, pointed_thing)
   pointed_thing = pointed_thing.under
+  local meta = core.get_meta(pointed_thing)
   local p_data = getPlayerData(p_name)
   local node = core.get_node(pointed_thing)
-  local meta = core.get_meta(pointed_thing)
   -- core.log("interacted node: " .. core.colorize("#932222", dump(node)))
-  -- core.log("meta:" .. dump(meta:to_table()))
   local inv = meta:get_inventory()
   if inv ~= nil then
-    core.log(core.colorize("#954823", "node: " .. node.name))
+    -- core.log(core.colorize("#954823", "node: " .. node.name))
     local at_least_one = 0
     for inv_name, inv_content in pairs(inv:get_lists()) do
       at_least_one = at_least_one + 1
       -- core.log("inv: " .. dump(inv_name))
     end
+
     ---FIXME: this is where the option to allow pickup up normal nodes should be done
     if at_least_one <= 0 then
       return
     end
-    local node_def = core.registered_nodes[node.name]
+
+    -- local node_def = core.registered_nodes[node.name]
     p_data.node = node
     -- if node_def.drop ~= node.name then
     --   p_data.node =node_def.drop
     -- end
     p_data.inv = meta:to_table()
     p_data.node_timer = core.get_node_timer(pointed_thing)
-    core.remove_node(pointed_thing)
-    Data.save_data()
+    -- core.remove_node(pointed_thing)
     -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
     -- core.swap_node(pos, core.registered_nodes["air"])
-    -- core.swap_node(pos, {name = "air"})
+    core.swap_node(pointed_thing, {name = "air"})
+    Data.save_data()
     core.sound_play({ name = "i_have_hands_pickup_node" },
       { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
     runCompat(pointed_thing)
@@ -133,8 +135,7 @@ local function pickupInv(p_name, pointed_thing)
   end
 end
 
-local function putDownInv(p_name, pointed_thing)
-  -- core.log("put down")
+function I_have_hands.putDownInv(p_name, pointed_thing)
   local p_data = getPlayerData(p_name)
   local p_ref = core.get_player_by_name(p_name)
 
@@ -143,47 +144,59 @@ local function putDownInv(p_name, pointed_thing)
   local node_in_pos = core.get_node(pointed_thing.above)
   local node_in_pos_def = core.registered_nodes[node_in_pos.name]
   if node_in_pos_def.buildable_to then
-    --   -- lets allow it
+  ---FIXME: why is the new_drop_pos not gettng the correct node??
   elseif node_in_pos.name ~= "air" then
-    core.log("not air")
-    return
+    ---lets try the spot above, specificly when above & under are the same
+    --- mainly for when the player is forced to drop the inv
+    local new_drop_pos = pointed_thing.under
+    if pointed_thing.above == pointed_thing.under then
+      new_drop_pos = {pointed_thing.above.x,pointed_thing.above.y+1,pointed_thing.above.z}
+      core.log("drop pos: "..dump(new_drop_pos))
+      node_in_pos = core.get_node(new_drop_pos)
+      ---set pointed_thing again
+      pointed_thing = {type="node", under=new_drop_pos, above=new_drop_pos}
+      node_in_pos_def = core.registered_nodes[node_in_pos.name]
+    end
+    if node_in_pos_def.buildable_to then
+      --- ok good to go
+    elseif node_in_pos.name ~= "air" then
+      core.log("pos: "..dump(new_drop_pos))
+      core.log("we are fucked.."..node_in_pos.name)
+      return
+    end
+    -- core.log("not air")
   end
 
   --NOTE: the rotation
-  p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
+  -- p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
 
-  ---ISSUE: place_node does not place it at pos
-  --the fix: something about map-block/node coordinate posistion
-  --FIXME: nope it's still broken
-  -- core.place_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 }, p_ref)
   local stack, placed_pos = core.item_place_node(ItemStack(p_data.node.name), p_ref, pointed_thing)
 
   -- core.set_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 })
 
   local meta = core.get_meta(pointed_thing.above)
   meta:from_table(p_data.inv)
-  local node_def = core.registered_nodes[p_data.node.name]
-  -- core.log(core.colorize("#938731", dump(node_def)))
-  if node_def ~= nil then
-    if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
-      core.get_node_timer(pointed_thing.above):start(p_data.node_timer:get_timeout())
-      -- core.get_node_timer(pos):set(p_data.node_timer:get_timeout(),p_data.node_timer:get_elapsed())
-      -- n_timer = p_data.node_timer
-      -- n_timer:start(n_timer:get_timeout())
-    end
-  end
-  runCompat(pointed_thing.above)
 
   --- make sure its been placed
   local check_node = core.get_node(pointed_thing.above)
   if check_node.name ~= p_data.node.name then
     core.log("node name: " .. check_node.name)
     core.log("something went wrong")
-    core.log("pos" .. dump(pointed_thing))
+    core.log("pointed_thing: " .. dump(pointed_thing))
     core.log("item_place_node: " .. dump(placed_pos))
     core.log("is player nil? " .. dump(p_ref))
+    Data.save_data()
     return
   end
+
+  local node_def = core.registered_nodes[p_data.node.name]
+  if node_def ~= nil then
+    if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
+      core.get_node_timer(pointed_thing.above):start(p_data.node_timer:get_timeout())
+    end
+  end
+
+  runCompat(pointed_thing.above)
 
   ---FIXME: these may need to be canceled, so check for that
   core.sound_play({ name = "i_have_hands_place_down_node" },
@@ -192,16 +205,14 @@ local function putDownInv(p_name, pointed_thing)
   p_data.node = nil
   p_data.node_timer = nil
   p_data.inv = nil -- clear it
-  Data.save_data()
 end
-
 
 core.register_on_leaveplayer(function(player_ref, timed_out)
   local p_name = player_ref:get_player_name()
   local p_data = getPlayerData(p_name)
   local p_pos = player_ref:get_pos()
   if p_data.inv ~= nil then
-    putDownInv(p_name, p_pos)
+    I_have_hands.putDownInv(p_name, p_pos)
   end
 end)
 
@@ -216,7 +227,8 @@ core.register_on_dieplayer(function(player_ref, reason)
   end
   local place_pos = vector.new(p_pos.x, p_pos.y, p_pos.z)
   if p_data.inv ~= nil then
-    putDownInv(p_name, { above = place_pos, under = place_pos })
+    local pointed_thing = {type="node",under=place_pos,above=place_pos}
+    I_have_hands.putDownInv(p_name, pointed_thing)
   end
 end)
 
@@ -330,6 +342,53 @@ local function castTheRay(player, reach)
   return pointed_thing
 end
 
+
+---@class hud_id
+---@field player_name string
+---@field hud_id number
+
+---@type hud_id[]
+local carrying_inv = {}
+
+local function getCarryingIndicatorId(player_name)
+  for c_i, c_v in ipairs(carrying_inv) do
+    if c_v.player_name == player_name then
+      return c_i
+    end
+  end
+  return nil
+end
+
+local function carryingIndicator(player_ref)
+  local player_name = player_ref:get_player_name()
+  local p_data = getPlayerData(player_name)
+  if p_data.inv ~= nil then
+    if getCarryingIndicatorId(player_name) == nil then
+      local hud_id = player_ref:hud_add({
+        type = "image",
+        -- position = { x = 0.54, y = 0.54 },
+        position = { x = 0.5, y = 0.6 },
+        -- position = { x = 0.65, y = 0.8 },
+        direction = 0,
+        name = "ihh_carry",
+        scale = { x = 4.5, y = 4.5 },
+        -- text = "crouch & interact to lift this",
+        text = "i_have_hands_indicator.png^[opacity:115",
+        number = "0xFFFFFF",
+        z_index = 0,
+      })
+      local new_hud = { player_name = player_name, hud_id = hud_id }
+      table.insert(carrying_inv, new_hud)
+    end
+  else
+    local hud_index = getCarryingIndicatorId(player_name)
+    if hud_index ~= nil then
+      player_ref:hud_remove(carrying_inv[hud_index].hud_id)
+      table.remove(carrying_inv, hud_index)
+    end
+  end
+end
+
 local started = false
 
 core.register_globalstep(function(dtime)
@@ -364,52 +423,58 @@ core.register_globalstep(function(dtime)
     local p_data = getPlayerData(p_name)
 
     local pointed_thing = castTheRay(player, reach)
+    carryingIndicator(player)
     if pointed_thing then
-      local inv = core.get_inventory({type="node", pos=pointed_thing.under})
-      -- local meta = core.get_meta(pointed_thing.under)
-      if inv ~= nil then
-        local player_name = player:get_player_name()
-        carryableIdicator(player, pointed_thing.under)
-        local p_hud = getPlayerFromPlayerHuds(player_name)
-        p_hud.hud_delay = p_hud.hud_delay - 1
-      else
-        removePlayerHud(player)
-      end
+        local inv = core.get_inventory({ type = "node", pos = pointed_thing.under })
+        if inv ~= nil then
+          local at_least_one = 0
+          for _, _ in pairs(inv:get_lists()) do
+            at_least_one = at_least_one + 1
+          end
+          if at_least_one > 0 then
+            local player_name = player:get_player_name()
+            carryableIdicator(player, pointed_thing.under)
+            local p_hud = getPlayerFromPlayerHuds(player_name)
+            p_hud.hud_delay = p_hud.hud_delay - 1
+          end
+        else
+          removePlayerHud(player)
+        end
     else
       removePlayerHud(player)
     end
 
 
     if p_control.place == true then
-      if item:get_name() ~= "" then
-        -- core.log("only work with empty hand")
-        return
-      end
       if p_data.pressed_button ~= true then -- only just on the first click
         p_data.pressed_button = true
-        if p_control.sneak == true then     -- must be sneaking (as if to reach down for it)
+        if item:get_name() ~= "" then
+          -- core.log("only work with empty hand")
+          return
+        end
+        if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
           if pointed_thing then
             if pointed_thing.ref and pointed_thing.ref == player then
               -- if pointed_thing.type == "object" then
               --   core.log("pointed: " .. dump(pointed_thing))
               --   return
               -- end
-              core.log("oop this is me")
+              -- core.log("oop this is me")
               return
             end
             if p_data.inv == nil then
-              core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
               if pointed_thing.under then
                 -- core.log("player data: " .. dump(p_data))
-                pickupInv(p_name, pointed_thing)
+                I_have_hands.pickupInv(p_name, pointed_thing)
               end
             else
-              core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              -- core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
               -- else we place it down
 
               if pointed_thing.above then
-                core.log("placing at: " .. dump(pointed_thing.above))
-                putDownInv(p_name, pointed_thing)
+                -- core.log("placing at: " .. dump(pointed_thing.above))
+                I_have_hands.putDownInv(p_name, pointed_thing)
               end
             end
           end
@@ -1115,66 +1180,7 @@ end
 -- local function addIndicator()
 
 -- end
----@class hud_id
----@field player_name string
----@field hud_id number
 
----@type hud_id[]
-local carrying_inv = {}
-
-local function getCarryingIndicatorId(player_name)
-  for c_i, c_v in ipairs(carrying_inv) do
-    if c_v.player_name == player_name then
-      return c_i
-    end
-  end
-  return nil
-end
-
-local function carryingIndicator()
-  local player = core.get_connected_players()
-  if #player > 0 then
-    for _, p in ipairs(player) do
-      local player_name = p:get_player_name()
-      -- core.log("attached: "..dump(p:get_children()))
-      local is_carying = false
-      for _, value in ipairs(p:get_children()) do
-        local attached_name = value:get_luaentity().name
-        if attached_name == "i_have_hands:held" then
-          is_carying = true
-          -- p:get_luaentity()._carrying_indicator = true
-          -- p:get_luaentity()._carrying_indicator = false
-        end
-      end
-      if is_carying == true then
-        if getCarryingIndicatorId(player_name) == nil then
-          local hud_id = p:hud_add({
-            type = "image",
-            -- position = { x = 0.54, y = 0.54 },
-            position = { x = 0.5, y = 0.6 },
-            -- position = { x = 0.65, y = 0.8 },
-            direction = 0,
-            name = "ihh_carry",
-            scale = { x = 4.5, y = 4.5 },
-            -- text = "crouch & interact to lift this",
-            text = "i_have_hands_indicator.png^[opacity:115",
-            number = "0xFFFFFF",
-            z_index = 0,
-          })
-          local new_hud = { player_name = player_name, hud_id = hud_id }
-          table.insert(carrying_inv, new_hud)
-        end
-      else
-        local hud_index = getCarryingIndicatorId(player_name)
-        if hud_index ~= nil then
-          p:hud_remove(carrying_inv[hud_index].hud_id)
-          table.remove(carrying_inv, hud_index)
-        end
-      end
-      -- core.log("carrying? " .. p:get_luaentity()._carrying_indicator)
-    end
-  end
-end
 
 -- local ran_once = false
 -- local tick = 0

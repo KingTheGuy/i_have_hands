@@ -18,7 +18,9 @@ function Data.save_data()
       local inv_data = {}
       for inv_name, inv in pairs(p_data.inv.inventory) do
         for slot, item in ipairs(inv) do
-          inv[slot] = item:to_string()
+          if type(item) ~= "string" then
+            inv[slot] = item:to_string()
+          end
         end
         inv_data[inv_name] = inv
       end

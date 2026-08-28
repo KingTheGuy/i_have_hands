@@ -34,7 +34,11 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
-- [ ] indicator
+- [ ] issue with placement
+  - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata
+  - [ ] save the node that was previously there, undo placement if error happens
+
+- [x] indicator
   - would need to constantly look up the looked at node for an inventory
 
 - [ ] raycast:
@@ -51,8 +55,9 @@ note: function place_node() seems to be broken, use item_place_node()
   - [ ] player leaves
   - [ ] player ides
 
-- [ ] putDownInv, make sure placed node matches before setting its meta
-- [ ] putDownInv, make copy of previus node revert to it if prev message applies
+- [ ] check this!
+  - [ ] putDownInv, make sure placed node matches before setting its meta
+  - [ ] putDownInv, make copy of previus node revert to it if prev message applies
 
 - [x] handle save/loading
   - [x] loads

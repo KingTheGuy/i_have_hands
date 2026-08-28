@@ -3,6 +3,8 @@ local mod_path = core.get_modpath(mod_name)
 
 I_have_hands = {}
 
+I_have_hands.indicator_delay = 20 * 3 -- Three-ish seconds
+
 -- local mod_storage = core.get_mod_storage()
 
 Allow_all = false --default for only nodes with inventories
@@ -220,6 +222,8 @@ end)
 
 
 --- INDICATOR
+---@class player_hud
+---@field hud_delay number
 local player_hud_id = {}
 
 local function getPlayerHud(player_name)
@@ -232,6 +236,9 @@ local function getPlayerHud(player_name)
   end
 end
 
+---comment
+---@param player_name any
+---@return player_hud
 local function getPlayerFromPlayerHuds(player_name)
   for _, ph in ipairs(player_hud_id) do
     if ph.player_name == player_name then
@@ -241,6 +248,18 @@ local function getPlayerFromPlayerHuds(player_name)
   return nil
 end
 
+local function removePlayerHud(player)
+  local hud_id = getPlayerHud(player:get_player_name())
+  if hud_id ~= nil then
+    player:hud_remove(hud_id)
+    for index, ph in ipairs(player_hud_id) do
+      if ph.player_name == player:get_player_name() then
+        table.remove(player_hud_id, index)
+      end
+    end
+  end
+end
+
 local function carryableIdicator(p, pos)
   local hud_id = getPlayerHud(p:get_player_name())
   local player_with_hud = getPlayerFromPlayerHuds(p:get_player_name())
@@ -248,7 +267,7 @@ local function carryableIdicator(p, pos)
     local this_players_hud = {
       player_name = p:get_player_name(),
       player_hud = hud_id,
-      hud_delay = 6,
+      hud_delay = I_have_hands.indicator_delay,
       chest_location = pos
     }
     table.insert(player_hud_id, this_players_hud)
@@ -276,7 +295,40 @@ local function carryableIdicator(p, pos)
   end
 end
 
+local function castTheRay(player, reach)
+  -- start at player eye_height, end at raycast
+  local p_dir = player:get_look_dir()
+  local p_eye_height = player:get_properties().eye_height
+  local p_pos = player:get_pos()
+  p_pos.y = p_pos.y + p_eye_height -- take eye_height into account
+  local new_pos = p_dir:multiply(reach):add(p_pos)
 
+  local ray = Raycast(p_pos, new_pos, true, false, nil)
+
+  ---FIXME: I AM HERE!!
+  local pointed_thing = nil
+  local object_in_way = false
+
+  for point in ray do
+    if point.type == "object" and point.ref == player then
+      -- core.log("opp this is me, lets skip and go next")
+    else
+      if point.type == "node" and pointed_thing == nil then
+        -- core.log(core.colorize("#917392", "pointed: " .. dump(point)))
+        pointed_thing = point
+      end
+      if point.type == "object" and pointed_thing == nil then
+        object_in_way = true
+      end
+    end
+  end
+
+  if object_in_way == true then
+    -- core.log("seems like there is a block")
+    return
+  end
+  return pointed_thing
+end
 
 local started = false
 
@@ -311,7 +363,22 @@ core.register_globalstep(function(dtime)
 
     local p_data = getPlayerData(p_name)
 
-    -- carryableIdicator(player,pointed_thing)
+    local pointed_thing = castTheRay(player, reach)
+    if pointed_thing then
+      local inv = core.get_inventory({type="node", pos=pointed_thing.under})
+      -- local meta = core.get_meta(pointed_thing.under)
+      if inv ~= nil then
+        local player_name = player:get_player_name()
+        carryableIdicator(player, pointed_thing.under)
+        local p_hud = getPlayerFromPlayerHuds(player_name)
+        p_hud.hud_delay = p_hud.hud_delay - 1
+      else
+        removePlayerHud(player)
+      end
+    else
+      removePlayerHud(player)
+    end
+
 
     if p_control.place == true then
       if item:get_name() ~= "" then
@@ -321,38 +388,6 @@ core.register_globalstep(function(dtime)
       if p_data.pressed_button ~= true then -- only just on the first click
         p_data.pressed_button = true
         if p_control.sneak == true then     -- must be sneaking (as if to reach down for it)
-          -- start at player eye_height, end at raycast
-          local p_dir = player:get_look_dir()
-          local p_eye_height = player:get_properties().eye_height
-          local p_pos = player:get_pos()
-          p_pos.y = p_pos.y + p_eye_height -- take eye_height into account
-          local new_pos = p_dir:multiply(reach):add(p_pos)
-
-          local ray = Raycast(p_pos, new_pos, true, false, nil)
-
-          ---FIXME: I AM HERE!!
-          local pointed_thing = nil
-          local object_in_way = false
-
-          for point in ray do
-            if point.type == "object" and point.ref == player then
-              core.log("opp this is me, lets skip and go next")
-            else
-              if point.type == "node" and pointed_thing == nil then
-                core.log(core.colorize("#917392", "pointed: " .. dump(point)))
-                pointed_thing = point
-              end
-              if point.type == "object" and pointed_thing == nil then
-                object_in_way = true
-              end
-            end
-          end
-
-          if object_in_way == true then
-            core.log("seems like there is a block")
-            return
-          end
-
           if pointed_thing then
             if pointed_thing.ref and pointed_thing.ref == player then
               -- if pointed_thing.type == "object" then
@@ -386,6 +421,7 @@ core.register_globalstep(function(dtime)
     end
   end
 end)
+
 
 ---@param this_string string the string
 ---@param split string sub to split at
@@ -976,18 +1012,6 @@ core.register_entity("i_have_hands:ghost", {
     -- end
   end,
 })
-
-local function removePlayerHud(player)
-  local hud_id = getPlayerHud(player:get_player_name())
-  if hud_id ~= nil then
-    player:hud_remove(hud_id)
-    for index, ph in ipairs(player_hud_id) do
-      if ph.player_name == player:get_player_name() then
-        table.remove(player_hud_id, index)
-      end
-    end
-  end
-end
 
 --FIXME: only raycast if the player's "hand" is empty (no need to cast when the player cant event pick it up to start with)
 local function raycast()

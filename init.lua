@@ -7,10 +7,11 @@ I_have_hands.indicator_delay = 20 * 3 -- Three-ish seconds
 
 -- local mod_storage = core.get_mod_storage()
 
-Allow_all = false --default for only nodes with inventories
+Allow_all = false        --default for only nodes with inventories
 
---moving a hot furnace with just your hands.. i don't this so buddy
-local RayDistance = 4; --this should be changed to the players reach
+local RayDistance = 2.2; --- best for this to be shorted than the player's reach
+local hand_range = core.registered_items[""].range
+
 --invs to block
 -- local blacklist = { "furnace", "shulker" } --if the name contains any of
 local blacklist = { "shulker", "bedrock" } --if the name contains any of
@@ -122,10 +123,19 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
     -- end
     p_data.inv = meta:to_table()
     p_data.node_timer = core.get_node_timer(pointed_thing)
-    -- core.remove_node(pointed_thing)
+
+    local node_def = core.registered_nodes[node.name]
+    -- core.log("mod_origin: "..node_def.mod_origin)
+    ---FIXME: if mod_origin is age of mending need to switch to swap node
+    if node_def.mod_origin == "aom_storage" or
+        node_def.mod_origin == "mcl_armor_stand"
+    then
+      core.swap_node(pointed_thing, { name = "air" })
+    else
+      core.remove_node(pointed_thing)
+    end
+
     -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
-    -- core.swap_node(pos, core.registered_nodes["air"])
-    core.swap_node(pointed_thing, {name = "air"})
     Data.save_data()
     core.sound_play({ name = "i_have_hands_pickup_node" },
       { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
@@ -144,24 +154,24 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   local node_in_pos = core.get_node(pointed_thing.above)
   local node_in_pos_def = core.registered_nodes[node_in_pos.name]
   if node_in_pos_def.buildable_to then
-  ---FIXME: why is the new_drop_pos not gettng the correct node??
+    ---FIXME: why is the new_drop_pos not gettng the correct node??
   elseif node_in_pos.name ~= "air" then
     ---lets try the spot above, specificly when above & under are the same
     --- mainly for when the player is forced to drop the inv
     local new_drop_pos = pointed_thing.under
     if pointed_thing.above == pointed_thing.under then
-      new_drop_pos = {pointed_thing.above.x,pointed_thing.above.y+1,pointed_thing.above.z}
-      core.log("drop pos: "..dump(new_drop_pos))
+      new_drop_pos = { pointed_thing.above.x, pointed_thing.above.y + 1, pointed_thing.above.z }
+      core.log("drop pos: " .. dump(new_drop_pos))
       node_in_pos = core.get_node(new_drop_pos)
       ---set pointed_thing again
-      pointed_thing = {type="node", under=new_drop_pos, above=new_drop_pos}
+      pointed_thing = { type = "node", under = new_drop_pos, above = new_drop_pos }
       node_in_pos_def = core.registered_nodes[node_in_pos.name]
     end
     if node_in_pos_def.buildable_to then
       --- ok good to go
     elseif node_in_pos.name ~= "air" then
-      core.log("pos: "..dump(new_drop_pos))
-      core.log("we are fucked.."..node_in_pos.name)
+      core.log("pos: " .. dump(new_drop_pos))
+      core.log("we are fucked.." .. node_in_pos.name)
       return
     end
     -- core.log("not air")
@@ -174,20 +184,21 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
 
   -- core.set_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 })
 
-  local meta = core.get_meta(pointed_thing.above)
+  local meta = core.get_meta(placed_pos)
   meta:from_table(p_data.inv)
 
   --- make sure its been placed
-  local check_node = core.get_node(pointed_thing.above)
-  if check_node.name ~= p_data.node.name then
-    core.log("node name: " .. check_node.name)
-    core.log("something went wrong")
-    core.log("pointed_thing: " .. dump(pointed_thing))
-    core.log("item_place_node: " .. dump(placed_pos))
-    core.log("is player nil? " .. dump(p_ref))
-    Data.save_data()
-    return
-  end
+  -- local check_node = core.get_node(pointed_thing.above)
+  -- if check_node.name ~= p_data.node.name then
+  --   core.log("node name: " .. check_node.name)
+  --   core.log("something went wrong")
+  --   core.log("pointed_thing: " .. dump(pointed_thing))
+  --   core.log("item_place_node: " .. dump(placed_pos))
+  --   core.log("is player nil? " .. dump(p_ref))
+  --   core.log("is this voxelibre? the node is different from the placemeent node")
+  --   Data.save_data()
+  --   return
+  -- end
 
   local node_def = core.registered_nodes[p_data.node.name]
   if node_def ~= nil then
@@ -205,6 +216,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   p_data.node = nil
   p_data.node_timer = nil
   p_data.inv = nil -- clear it
+  Data.save_data()
 end
 
 core.register_on_leaveplayer(function(player_ref, timed_out)
@@ -227,7 +239,7 @@ core.register_on_dieplayer(function(player_ref, reason)
   end
   local place_pos = vector.new(p_pos.x, p_pos.y, p_pos.z)
   if p_data.inv ~= nil then
-    local pointed_thing = {type="node",under=place_pos,above=place_pos}
+    local pointed_thing = { type = "node", under = place_pos, above = place_pos }
     I_have_hands.putDownInv(p_name, pointed_thing)
   end
 end)
@@ -411,20 +423,36 @@ core.register_globalstep(function(dtime)
     end
     -- log_controls()
 
-    local reach = RayDistance
-    local item = player:get_wielded_item()
-    local item_reach = item:get_meta().range
-    if item_reach ~= nil then
-      reach = item_reach
-    end
     local p_name = player:get_player_name()
-    -- core.log("item reach range: "..dump())
-
     local p_data = getPlayerData(p_name)
 
-    local pointed_thing = castTheRay(player, reach)
+    --- for picking up the player's reach is shorter
+    --- for putting down reach will be whatever is is set for the hand
+    local reach = RayDistance
+    local item = player:get_wielded_item()
+    if p_data.inv ~= nil then
+      -- local item_reach = item:get_meta().range
+      -- if item_reach ~= nil then
+      --   reach = item_reach
+      -- end
+      reach = hand_range
+    end
+    core.log("reach is: " .. reach)
+
     carryingIndicator(player)
-    if pointed_thing then
+
+    ---lets not raycast if item is not ""
+    if item:get_name() ~= "" then
+      --- drop inv/node if wield item is not hand
+      if p_data.inv ~= nil then
+        local p_pos = player:get_pos()
+        local drop_pos = { type = "node", under = p_pos, above = p_pos }
+        I_have_hands.putDownInv(p_name, drop_pos)
+      end
+      removePlayerHud(player)
+    else
+      local pointed_thing = castTheRay(player, reach)
+      if pointed_thing then
         local inv = core.get_inventory({ type = "node", pos = pointed_thing.under })
         if inv ~= nil then
           local at_least_one = 0
@@ -440,49 +468,48 @@ core.register_globalstep(function(dtime)
         else
           removePlayerHud(player)
         end
-    else
-      removePlayerHud(player)
-    end
-
-
-    if p_control.place == true then
-      if p_data.pressed_button ~= true then -- only just on the first click
-        p_data.pressed_button = true
-        if item:get_name() ~= "" then
-          -- core.log("only work with empty hand")
-          return
-        end
-        if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
-          if pointed_thing then
-            if pointed_thing.ref and pointed_thing.ref == player then
-              -- if pointed_thing.type == "object" then
-              --   core.log("pointed: " .. dump(pointed_thing))
-              --   return
-              -- end
-              -- core.log("oop this is me")
-              return
-            end
-            if p_data.inv == nil then
-              -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
-              if pointed_thing.under then
-                -- core.log("player data: " .. dump(p_data))
-                I_have_hands.pickupInv(p_name, pointed_thing)
-              end
-            else
-              -- core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
-              -- else we place it down
-
-              if pointed_thing.above then
-                -- core.log("placing at: " .. dump(pointed_thing.above))
-                I_have_hands.putDownInv(p_name, pointed_thing)
-              end
-            end
-          end
-          --- check that hand is empty
-        end
+      else
+        removePlayerHud(player)
       end
-    else
-      p_data.pressed_button = false
+
+      if p_control.place == true then
+        if p_data.pressed_button ~= true then -- only just on the first click
+          p_data.pressed_button = true
+          if item:get_name() ~= "" then
+            -- core.log("only work with empty hand")
+            return
+          end
+          if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
+            if pointed_thing then
+              if pointed_thing.ref and pointed_thing.ref == player then
+                -- if pointed_thing.type == "object" then
+                --   core.log("pointed: " .. dump(pointed_thing))
+                --   return
+                -- end
+                -- core.log("oop this is me")
+                return
+              end
+              if p_data.inv == nil then
+                -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+                if pointed_thing.under then
+                  -- core.log("player data: " .. dump(p_data))
+                  I_have_hands.pickupInv(p_name, pointed_thing)
+                end
+              else
+                -- core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+                -- else we place it down
+                if pointed_thing.above then
+                  -- core.log("placing at: " .. dump(pointed_thing.above))
+                  I_have_hands.putDownInv(p_name, pointed_thing)
+                end
+              end
+            end
+            --- check that hand is empty
+          end
+        end
+      else
+        p_data.pressed_button = false
+      end
     end
   end
 end)

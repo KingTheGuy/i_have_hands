@@ -479,29 +479,29 @@ core.register_globalstep(function(dtime)
             -- core.log("only work with empty hand")
             return
           end
-          if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
-            if pointed_thing then
-              if pointed_thing.ref and pointed_thing.ref == player then
-                -- if pointed_thing.type == "object" then
-                --   core.log("pointed: " .. dump(pointed_thing))
-                --   return
-                -- end
-                -- core.log("oop this is me")
-                return
-              end
-              if p_data.inv == nil then
-                -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
-                if pointed_thing.under then
-                  -- core.log("player data: " .. dump(p_data))
+          if pointed_thing then
+            if pointed_thing.ref and pointed_thing.ref == player then
+              -- if pointed_thing.type == "object" then
+              --   core.log("pointed: " .. dump(pointed_thing))
+              --   return
+              -- end
+              -- core.log("oop this is me")
+              return
+            end
+            if p_data.inv == nil then
+              -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              if pointed_thing.under then
+                -- core.log("player data: " .. dump(p_data))
+                if p_control.sneak == true then   -- must be sneaking (as if to reach down for it)
                   I_have_hands.pickupInv(p_name, pointed_thing)
                 end
-              else
-                -- core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
-                -- else we place it down
-                if pointed_thing.above then
-                  -- core.log("placing at: " .. dump(pointed_thing.above))
-                  I_have_hands.putDownInv(p_name, pointed_thing)
-                end
+              end
+            else
+              -- core.log(core.colorize("#853729", "[ DOWN ] -> " .. core.colorize("#189784", dump(pointed_thing))))
+              -- else we place it down
+              if pointed_thing.above then
+                -- core.log("placing at: " .. dump(pointed_thing.above))
+                I_have_hands.putDownInv(p_name, pointed_thing)
               end
             end
             --- check that hand is empty

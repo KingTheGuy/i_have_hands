@@ -38,9 +38,6 @@ note: function place_node() seems to be broken, use item_place_node()
 
 - [ ] animation
 
-- [x] #BUG placing down on build_to nodes causes data loss.. why?
-  - just needed to make sure that the data was being set on the actual pos
-
 - [ ] this is so broken!!
   - [ ] (which? aom furnace? things that do not want to be placed?) picking up some node types breaks placing (for sure something to do with core.item_place_node(), and the node maybe not being placeable by normal means)
   - [x] (node checking is bad, forget it) voxelibre. because the placed node is different than the held one. the node check fails.
@@ -52,36 +49,35 @@ note: function place_node() seems to be broken, use item_place_node()
   - [x] #FIXME someone with putdowninv is broken causing multiple to be placeable
   - [x] #FIXME pipeworks. seem to be able to pickup pipes; is this normal or did it break while trying to place a inv node there.
 
-- [x] indicator
-  - would need to constantly look up the looked at node for an inventory
-
-- [ ] raycast:
-  - [x] raycast objects too, but ignore self.
-    - reason is drawers mod, need to be able to sneak + click to do functions
-  - [ ] cleanup and comments
-
-- [x] placing, needs to also take into account grass/placeable on
-- [ ] protection, need to handle that
+- [ ] #IMPORTANT protection, need to handle that
 - [ ] voxelibre chests need to make sure they update after being placed (visual reasons)
-
-- [ ] putdown when:
-  - what I am currently trying is kinda broken
-  - [ ] player leaves
-  - [ ] player ides
 
 - [ ] check this!
   - [ ] putDownInv, make sure placed node matches before setting its meta
   - [ ] putDownInv, make copy of previus node revert to it if prev message applies
 
+- [ ] SAVING/LOADING; there may be an issue if the inv has USERDATA
+
+## DONE:
+
+- [x] #BUG placing down on build_to nodes causes data loss.. why?
+  - just needed to make sure that the data was being set on the actual pos
+- [x] indicator
+- [x] raycast:
+  - [x] raycast objects too, but ignore self.
+    - reason is drawers mod, need to be able to sneak + click to do functions
+  - [x] cleanup and comments
+- [x] placing, needs to also take into account built_to option
+- [x] putdown when:
+  - what I am currently trying is kinda broken
+  - [x] player leaves
+  - [x] player ides
 - [x] handle save/loading
   - [x] loads
   - [x] saves
-  - [ ] there may be an issue if the inv has USERDATA
   - [x] when leaving
   - [x] on world load
   - [x] when picking up & putting down (to make sure no data will be lost)
-
-## DONE:
 
 - [x] #LUANTI I_have_hands: bug, picking up armor stands, infinite armor
 - [x] add hud indicator

@@ -7,9 +7,9 @@ I_have_hands.indicator_delay = 20 * 3 -- Three-ish seconds
 
 -- local mod_storage = core.get_mod_storage()
 
-Allow_all = false        --default for only nodes with inventories
+I_have_hands.allow_all = false --default for only nodes with inventories
 
-local RayDistance = 2.2; --- best for this to be shorted than the player's reach
+local RayDistance = 2.2;       --- best for this to be shorted than the player's reach
 local hand_range = core.registered_items[""].range
 
 --invs to block
@@ -103,46 +103,49 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   local node = core.get_node(pointed_thing)
   -- core.log("interacted node: " .. core.colorize("#932222", dump(node)))
   local inv = meta:get_inventory()
-  if inv ~= nil then
-    -- core.log(core.colorize("#954823", "node: " .. node.name))
-    local at_least_one = 0
-    for inv_name, inv_content in pairs(inv:get_lists()) do
-      at_least_one = at_least_one + 1
-      -- core.log("inv: " .. dump(inv_name))
+  local at_least_one = 0
+  if I_have_hands.allow_all == false then
+    if inv ~= nil then
+      -- core.log(core.colorize("#954823", "node: " .. node.name))
+      for inv_name, inv_content in pairs(inv:get_lists()) do
+        at_least_one = at_least_one + 1
+        -- core.log("inv: " .. dump(inv_name))
+      end
     end
 
     ---FIXME: this is where the option to allow pickup up normal nodes should be done
     if at_least_one <= 0 then
       return
     end
-
-    -- local node_def = core.registered_nodes[node.name]
-    p_data.node = node
-    -- if node_def.drop ~= node.name then
-    --   p_data.node =node_def.drop
-    -- end
-    p_data.inv = meta:to_table()
-    p_data.node_timer = core.get_node_timer(pointed_thing)
-
-    local node_def = core.registered_nodes[node.name]
-    -- core.log("mod_origin: "..node_def.mod_origin)
-    ---FIXME: if mod_origin is age of mending need to switch to swap node
-    if node_def.mod_origin == "aom_storage" or
-        node_def.mod_origin == "mcl_armor_stand"
-    then
-      core.swap_node(pointed_thing, { name = "air" })
-    else
-      core.remove_node(pointed_thing)
-    end
-
-    -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
-    Data.save_data()
-    core.sound_play({ name = "i_have_hands_pickup_node" },
-      { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
-    runCompat(pointed_thing)
-
-    -- core.add_item(pos, ItemStack(node.name))
   end
+
+  -- local node_def = core.registered_nodes[node.name]
+  p_data.node = node
+  -- if node_def.drop ~= node.name then
+  --   p_data.node =node_def.drop
+  -- end
+  p_data.inv = meta:to_table()
+  p_data.node_timer = core.get_node_timer(pointed_thing)
+
+  local node_def = core.registered_nodes[node.name]
+  -- core.log("mod_origin: "..node_def.mod_origin)
+  ---FIXME: if mod_origin is age of mending need to switch to swap node
+  if node_def.mod_origin == "aom_storage" or
+      node_def.mod_origin == "mcl_armor_stand"
+  then
+    core.swap_node(pointed_thing, { name = "air" })
+  else
+    core.remove_node(pointed_thing)
+  end
+
+  -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
+  Data.save_data()
+  core.sound_play({ name = "i_have_hands_pickup_node" },
+    { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
+  runCompat(pointed_thing)
+
+  -- core.add_item(pos, ItemStack(node.name))
+  -- end
 end
 
 function I_have_hands.putDownInv(p_name, pointed_thing)
@@ -161,7 +164,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     local new_drop_pos = pointed_thing.under
     if pointed_thing.above == pointed_thing.under then
       new_drop_pos = { pointed_thing.above.x, pointed_thing.above.y + 1, pointed_thing.above.z }
-      core.log("drop pos: " .. dump(new_drop_pos))
+      -- core.log("drop pos: " .. dump(new_drop_pos))
       node_in_pos = core.get_node(new_drop_pos)
       ---set pointed_thing again
       pointed_thing = { type = "node", under = new_drop_pos, above = new_drop_pos }
@@ -170,8 +173,6 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     if node_in_pos_def.buildable_to then
       --- ok good to go
     elseif node_in_pos.name ~= "air" then
-      core.log("pos: " .. dump(new_drop_pos))
-      core.log("we are fucked.." .. node_in_pos.name)
       return
     end
     -- core.log("not air")
@@ -195,7 +196,6 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   --   core.log("pointed_thing: " .. dump(pointed_thing))
   --   core.log("item_place_node: " .. dump(placed_pos))
   --   core.log("is player nil? " .. dump(p_ref))
-  --   core.log("is this voxelibre? the node is different from the placemeent node")
   --   Data.save_data()
   --   return
   -- end
@@ -234,7 +234,6 @@ core.register_on_dieplayer(function(player_ref, reason)
   local p_pos = player_ref:get_pos()
   p_pos = vector.new(math.floor(p_pos.x + 0.5), math.floor(p_pos.y + 0.5), math.floor(p_pos.z + 0.5))
   if p_pos == nil then
-    core.log("fucked")
     return
   end
   local place_pos = vector.new(p_pos.x, p_pos.y, p_pos.z)
@@ -414,13 +413,13 @@ core.register_globalstep(function(dtime)
     local p_control = player:get_player_control()
 
     --- (for debugging) lets see what is being pressed
-    local log_controls = function()
-      for key, value in pairs(p_control) do
-        if value == true then
-          core.log(string.format("%s : %s", dump(key), dump(value)))
-        end
-      end
-    end
+    -- local log_controls = function()
+    --   for key, value in pairs(p_control) do
+    --     if value == true then
+    --       core.log(string.format("%s : %s", dump(key), dump(value)))
+    --     end
+    --   end
+    -- end
     -- log_controls()
 
     local p_name = player:get_player_name()
@@ -437,7 +436,7 @@ core.register_globalstep(function(dtime)
       -- end
       reach = hand_range
     end
-    core.log("reach is: " .. reach)
+    -- core.log("reach is: " .. reach)
 
     carryingIndicator(player)
 
@@ -454,12 +453,14 @@ core.register_globalstep(function(dtime)
       local pointed_thing = castTheRay(player, reach)
       if pointed_thing then
         local inv = core.get_inventory({ type = "node", pos = pointed_thing.under })
+        local at_least_one = 0
         if inv ~= nil then
-          local at_least_one = 0
           for _, _ in pairs(inv:get_lists()) do
             at_least_one = at_least_one + 1
           end
-          if at_least_one > 0 then
+        end
+        if p_data.inv == nil then
+          if I_have_hands.allow_all or at_least_one > 0 then
             local player_name = player:get_player_name()
             carryableIdicator(player, pointed_thing.under)
             local p_hud = getPlayerFromPlayerHuds(player_name)
@@ -492,7 +493,7 @@ core.register_globalstep(function(dtime)
               -- core.log(core.colorize("#853729", "[ UP ] -> " .. core.colorize("#189784", dump(pointed_thing))))
               if pointed_thing.under then
                 -- core.log("player data: " .. dump(p_data))
-                if p_control.sneak == true then   -- must be sneaking (as if to reach down for it)
+                if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
                   I_have_hands.pickupInv(p_name, pointed_thing)
                 end
               end
@@ -772,7 +773,7 @@ local function checkProtection(pos, user)
 end
 
 local function isInventory(meta)
-  if Allow_all == true then
+  if I_have_hands.allow_all == true then
     return true
   end
   local count = 0

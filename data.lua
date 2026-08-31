@@ -12,7 +12,7 @@ function Data.save_data()
     if p_data.inv ~= nil then
       -- core.log("will save this..")
       -- data[player_name] = data[player_name]
-      data[player_name] =  {}
+      data[player_name] = {}
       ---TODO: itemstacks need to be serialized
       --- itemstack to table
       local inv_data = {}
@@ -48,18 +48,20 @@ function Data.load_data()
     return
   end
   local parsed_data = core.parse_json(data)
-  if  parsed_data == nil then
+  if parsed_data == nil then
     -- core.log("no data to parse")
     return
   end
   ---@class holder
   for player_name, p_data in pairs(parsed_data) do
     local inv_data = {}
-    for inv_name, inv in pairs(p_data.inv.inventory) do
-      for slot, item in ipairs(inv) do
-        inv[slot] = ItemStack(item)
+    if p_data.inv and p_data.inv.inventory then
+      for inv_name, inv in pairs(p_data.inv.inventory) do
+        for slot, item in ipairs(inv) do
+          inv[slot] = ItemStack(item)
+        end
+        inv_data[inv_name] = inv
       end
-      inv_data[inv_name] = inv
     end
     I_have_hands.Player_data[player_name] = p_data
     I_have_hands.Player_data[player_name].inv.inventory = inv_data
@@ -68,5 +70,3 @@ function Data.load_data()
   -- core.log("what does this look like? "..dump(parsed_data))
   -- core.log("loaded_data")
 end
-
-

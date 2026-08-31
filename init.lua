@@ -10,7 +10,7 @@ I_have_hands.indicator_delay = 20 * 3 -- Three-ish seconds
 I_have_hands.allow_all = false --default for only nodes with inventories
 
 local RayDistance = 2.2;       --- best for this to be shorted than the player's reach
-local hand_range = core.registered_items[""].range
+local hand_range = core.registered_items[""].range or 4 --- is 4 the default engine hand reach?
 
 --invs to block
 -- local blacklist = { "furnace", "shulker" } --if the name contains any of
@@ -181,12 +181,17 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   --NOTE: the rotation
   -- p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
 
+  if p_data.node == nil then
+    return
+  end
   local stack, placed_pos = core.item_place_node(ItemStack(p_data.node.name), p_ref, pointed_thing)
 
   -- core.set_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 })
 
   local meta = core.get_meta(placed_pos)
-  meta:from_table(p_data.inv)
+  if meta ~= nil then
+    meta:from_table(p_data.inv)
+  end
 
   --- make sure its been placed
   -- local check_node = core.get_node(pointed_thing.above)
@@ -436,7 +441,6 @@ core.register_globalstep(function(dtime)
       -- end
       reach = hand_range
     end
-    -- core.log("reach is: " .. reach)
 
     carryingIndicator(player)
 

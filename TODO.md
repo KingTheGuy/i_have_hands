@@ -34,6 +34,9 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
+- [ ] seems like I did some wonky stuff with, with putDownInv()
+  - [ ] should pointed_thing be the same for under and above? I think once the node gets placed, both above and under should eqaul or just use a new variable with that new value
+
 - [ ] start cleaning up...
 
 - [ ] animation

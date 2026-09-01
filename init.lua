@@ -93,14 +93,30 @@ local function runCompat(pos)
   end
 end
 
+
+---comment
+---@param pos any
+---@param p_data holder
+function I_have_hands.spawn_ghost(pos,p_data)
+  local obj = core.add_entity(pos, "i_have_hands:held")
+  obj:set_properties({
+    wield_item = p_data.node.name
+  })
+  obj:set_properties({ visual_size = { x = 0.75, y = 0.75, z = 0.75 } })
+  local ghost = core.add_entity(pos, "i_have_hands:ghost")
+  -- ghost:set_rotation({ x = obj_rot.x, y = obj_rot.y + math.rad(-90), z = obj_rot.z })
+  obj:set_attach(ghost, "BODY", vector.new(0, 0, 0), vector.new(0, -90, 0))
+  ghost:set_animation({ x = 0/24, y = 50/24}, 4, 0, false)
+end
+
 ---comment
 ---@param p_name string
----@param pointed_thing table
+---@param pos table
 function I_have_hands.pickupInv(p_name, pointed_thing)
-  pointed_thing = pointed_thing.under
-  local meta = core.get_meta(pointed_thing)
+  local pos = pointed_thing.under
+  local meta = core.get_meta(pos)
   local p_data = getPlayerData(p_name)
-  local node = core.get_node(pointed_thing)
+  local node = core.get_node(pos)
   -- core.log("interacted node: " .. core.colorize("#932222", dump(node)))
   local inv = meta:get_inventory()
   local at_least_one = 0
@@ -121,11 +137,8 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
 
   -- local node_def = core.registered_nodes[node.name]
   p_data.node = node
-  -- if node_def.drop ~= node.name then
-  --   p_data.node =node_def.drop
-  -- end
   p_data.inv = meta:to_table()
-  p_data.node_timer = core.get_node_timer(pointed_thing)
+  p_data.node_timer = core.get_node_timer(pos)
 
   local node_def = core.registered_nodes[node.name]
   -- core.log("mod_origin: "..node_def.mod_origin)
@@ -133,16 +146,16 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   if node_def.mod_origin == "aom_storage" or
       node_def.mod_origin == "mcl_armor_stand"
   then
-    core.swap_node(pointed_thing, { name = "air" })
+    core.swap_node(pos, { name = "air" })
   else
-    core.remove_node(pointed_thing)
+    core.remove_node(pos)
   end
 
   -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
   Data.save_data()
   core.sound_play({ name = "i_have_hands_pickup_node" },
-    { pos = pointed_thing, pitch = math.random(0.7, 1.2), gain = 1 }, true)
-  runCompat(pointed_thing)
+    { pos = pos, pitch = math.random(0.7, 1.2), gain = 1 }, true)
+  runCompat(pos)
 
   -- core.add_item(pos, ItemStack(node.name))
   -- end
@@ -205,18 +218,24 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   --   return
   -- end
 
+  runCompat(placed_pos)
+
   local node_def = core.registered_nodes[p_data.node.name]
   if node_def ~= nil then
     if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
-      core.get_node_timer(pointed_thing.above):start(p_data.node_timer:get_timeout())
+      local node_timer = core.get_node_timer(placed_pos)
+      if node_timer:is_started() == false then
+        node_timer:set(p_data.node_timer:get_timeout(),0)
+        -- node_timer:start(p_data.node_timer:get_timeout())
+      end
     end
   end
 
-  runCompat(pointed_thing.above)
+  -- I_have_hands.spawn_ghost(pointed_thing.above,p_data)
 
   ---FIXME: these may need to be canceled, so check for that
   core.sound_play({ name = "i_have_hands_place_down_node" },
-    { pos = pointed_thing.above, pitch = math.random(0.7, 1.2), gain = 1 },
+    { pos = placed_pos, pitch = math.random(0.7, 1.2), gain = 1 },
     true)
   p_data.node = nil
   p_data.node_timer = nil
@@ -1021,38 +1040,38 @@ core.register_entity("i_have_hands:held", {
   on_step = function(self, dtime, moveresult)
     -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
 
-    if self.object:get_attach() == nil then
-      local contains = false
-      for i, v in pairs(to_animate) do
-        if v.obj == self.object then
-          -- core.debug("should not delete this yet")
-          contains = true
-        end
-      end
-      if contains == false then
-        local pos = self.object:get_luaentity().initial_pos
-        for i, v in pairs(data_storage:get_keys()) do
-          if v == pos then
-            core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
-            local meta = core.get_meta(vector.from_string(pos))
-            meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
-            data_storage:set_string(v, "")
-          end
-        end
-        self.object:remove()
-      end
-    end
+    -- if self.object:get_attach() == nil then
+    --   local contains = false
+    --   for i, v in pairs(to_animate) do
+    --     if v.obj == self.object then
+    --       -- core.debug("should not delete this yet")
+    --       contains = true
+    --     end
+    --   end
+    --   if contains == false then
+    --     local pos = self.object:get_luaentity().initial_pos
+    --     for i, v in pairs(data_storage:get_keys()) do
+    --       if v == pos then
+    --         core.set_node(vector.from_string(pos), core.deserialize(data_storage:get_string(v))["node"])
+    --         local meta = core.get_meta(vector.from_string(pos))
+    --         meta:from_table(utils.DeserializeMetaData(core.deserialize(data_storage:get_string(v))["data"]))
+    --         data_storage:set_string(v, "")
+    --       end
+    --     end
+    --     self.object:remove()
+    --   end
+    -- end
 
     --updute pos and data
-    if self.object:get_luaentity() then
-      if self.object:get_luaentity().initial_pos ~= nil then
-        local pos = self.object:get_luaentity().initial_pos
-        local data = data_storage:get_string(pos)
-        data_storage:set_string(pos)
-        self.object:get_luaentity().initial_pos = vector.to_string(self.object:get_pos())
-        data_storage:set_string(vector.to_string(self.object:get_pos()), data)
-      end
-    end
+    -- if self.object:get_luaentity() then
+    --   if self.object:get_luaentity().initial_pos ~= nil then
+    --     local pos = self.object:get_luaentity().initial_pos
+    --     local data = data_storage:get_string(pos)
+    --     data_storage:set_string(pos)
+    --     self.object:get_luaentity().initial_pos = vector.to_string(self.object:get_pos())
+    --     data_storage:set_string(vector.to_string(self.object:get_pos()), data)
+    --   end
+    -- end
   end,
 })
 
@@ -1060,8 +1079,8 @@ core.register_entity("i_have_hands:held", {
 core.register_entity("i_have_hands:ghost", {
   selectionbox = { -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, rotate = false },
   pointable = false,
-  physical = true,
-  collide_with_objects = true,
+  physical = false,
+  collide_with_objects = false,
   visual = "mesh",
   mesh = "i_have_hands_ghost.glb",
   -- mesh = "place_animation.glb",

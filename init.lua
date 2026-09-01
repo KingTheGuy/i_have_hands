@@ -7,9 +7,9 @@ I_have_hands.indicator_delay = 20 * 3 -- Three-ish seconds
 
 -- local mod_storage = core.get_mod_storage()
 
-I_have_hands.allow_all = false --default for only nodes with inventories
+I_have_hands.allow_all = false                          --default for only nodes with inventories
 
-local RayDistance = 2.2;       --- best for this to be shorted than the player's reach
+local RayDistance = 2.2;                                --- best for this to be shorted than the player's reach
 local hand_range = core.registered_items[""].range or 4 --- is 4 the default engine hand reach?
 
 --invs to block
@@ -21,6 +21,7 @@ local blacklist = { "shulker", "bedrock" } --if the name contains any of
 ---@field node table
 ---@field pressed_button boolean
 ---@field node_timer table
+---@field held boolean
 I_have_hands.Player_data = {}
 
 dofile(mod_path .. "/utils.lua")
@@ -94,19 +95,44 @@ local function runCompat(pos)
 end
 
 
----comment
+---will attach / remove the carry entity to the player
 ---@param pos any
+---@param p_ref any
 ---@param p_data holder
-function I_have_hands.spawn_ghost(pos,p_data)
-  local obj = core.add_entity(pos, "i_have_hands:held")
-  obj:set_properties({
-    wield_item = p_data.node.name
-  })
-  obj:set_properties({ visual_size = { x = 0.75, y = 0.75, z = 0.75 } })
-  local ghost = core.add_entity(pos, "i_have_hands:ghost")
+---@param pickup boolean
+function I_have_hands.carry_entity(pos, p_ref, p_data, pickup)
+  if pickup == true then
+    local node_item = p_data.node.name
+    local node_def = core.registered_nodes[node_item]
+
+    ---NOTE(COMPAT): voxelibre chests
+    if node_def.mod_origin == "mcl_chests" then
+      if node_def.drop ~= "" then
+        node_item = node_def.drop
+      end
+    end
+
+    local held = core.add_entity(pos, "i_have_hands:held")
+    held:set_properties({
+      wield_item = node_item
+    })
+    -- held:set_properties({ wield_item = p_data.node.name })
+    -- held:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
+    held:set_properties({ visual_size = { x = 0.04, y = 0.04, z = 0.04 } })
+    held:set_attach(p_ref, "", vector.new(0, 1, 0.5), vector.new(0, 0, 0),true)
+    p_data.held = true
+  else
+    for _, obj in pairs(p_ref:get_children()) do
+      local obj_name = obj:get_luaentity().name
+      if obj_name == "i_have_hands:held" then
+        obj:remove()
+      end
+    end
+  end
+  -- local ghost = core.add_entity(pos, "i_have_hands:ghost")
   -- ghost:set_rotation({ x = obj_rot.x, y = obj_rot.y + math.rad(-90), z = obj_rot.z })
-  obj:set_attach(ghost, "BODY", vector.new(0, 0, 0), vector.new(0, -90, 0))
-  ghost:set_animation({ x = 0/24, y = 50/24}, 4, 0, false)
+  -- ghost:set_animation({ x = 0/24, y = 50/24}, 4, 0, false)
+  Data.save_data()
 end
 
 ---comment
@@ -138,7 +164,9 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   -- local node_def = core.registered_nodes[node.name]
   p_data.node = node
   p_data.inv = meta:to_table()
+
   p_data.node_timer = core.get_node_timer(pos)
+  p_data.held = true
 
   local node_def = core.registered_nodes[node.name]
   -- core.log("mod_origin: "..node_def.mod_origin)
@@ -150,6 +178,8 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   else
     core.remove_node(pos)
   end
+
+  I_have_hands.carry_entity(pos, core.get_player_by_name(p_name), p_data,true)
 
   -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
   Data.save_data()
@@ -204,6 +234,10 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   local meta = core.get_meta(placed_pos)
   if meta ~= nil then
     meta:from_table(p_data.inv)
+    ---NOTE(COMPAT): voxelibre/ furnace drops xp on brake. so set it to zero on place.
+    if meta:get_float("xp") ~= "" then
+      meta:set_float("xp",0)
+    end
   end
 
   --- make sure its been placed
@@ -225,11 +259,14 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
       local node_timer = core.get_node_timer(placed_pos)
       if node_timer:is_started() == false then
-        node_timer:set(p_data.node_timer:get_timeout(),0)
+        node_timer:set(p_data.node_timer:get_timeout(), 0)
         -- node_timer:start(p_data.node_timer:get_timeout())
       end
     end
   end
+
+
+  I_have_hands.carry_entity(placed_pos, p_ref, p_data, false)
 
   -- I_have_hands.spawn_ghost(pointed_thing.above,p_data)
 
@@ -240,6 +277,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   p_data.node = nil
   p_data.node_timer = nil
   p_data.inv = nil -- clear it
+  p_data.held = false
   Data.save_data()
 end
 
@@ -448,6 +486,11 @@ core.register_globalstep(function(dtime)
 
     local p_name = player:get_player_name()
     local p_data = getPlayerData(p_name)
+
+    ---make sure the player has the carry entity when they join
+    if p_data.node ~= nil and p_data.held == nil then
+      I_have_hands.carry_entity(player:get_pos(),player,p_data,true)
+    end
 
     --- for picking up the player's reach is shorter
     --- for putting down reach will be whatever is is set for the hand
@@ -934,14 +977,14 @@ end
 --         obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
 --         --NOTE(COMPAT): this takes care of voxelibre chests
---         if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
---           obj:set_properties({ wield_item = "mcl_chests:chest" })
---           -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
---           -- if drawtype == "mesh" then
---           --   obj:set_properties({ wield_item = "mcl_chests:chest" })
---           -- end
---           -- obj:set_properties({ wield_item = "mcl_chests:"..name })
---         end
+        -- if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
+        --   obj:set_properties({ wield_item = "mcl_chests:chest" })
+        --   -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
+        --   -- if drawtype == "mesh" then
+        --   --   obj:set_properties({ wield_item = "mcl_chests:chest" })
+        --   -- end
+        --   -- obj:set_properties({ wield_item = "mcl_chests:"..name })
+        -- end
 
 --         -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
 --         -- core.debug(core.colorize("blue", "all: \n" .. dump(meta:to_table())))
@@ -1035,12 +1078,14 @@ core.register_entity("i_have_hands:held", {
   -- mesh = "i_have_hands_ghost.glb",
   visual = "item",
   wield_item = "",
-  visual_size = { x = 0.35, y = 0.35, z = 0.35 },
+  -- visual_size = { x = 0.35, y = 0.35, z = 0.35 },
   _initial_pos = "",
   on_step = function(self, dtime, moveresult)
     -- core.debug(core.colorize("cyan", "dropping: \n" .. dump(data_storage:get_keys())))
 
-    -- if self.object:get_attach() == nil then
+    if self.object:get_attach() == nil then
+      self.object:remove()
+    end
     --   local contains = false
     --   for i, v in pairs(to_animate) do
     --     if v.obj == self.object then

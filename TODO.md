@@ -34,19 +34,25 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
-- [ ] seems like I did some wonky stuff with, with putDownInv()
-  - [ ] should pointed_thing be the same for under and above? I think once the node gets placed, both above and under should eqaul or just use a new variable with that new value
+- [x] #BUG leaving/exiting twice in a row will not save what the player is holding
+  - [x] save data on carry
 
-- [ ] start cleaning up...
+- [ ] blacklist
+  - [ ] shulkers
+  - [ ] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues
+  - [ ] or anything that has add_item() as its break function?
 
-- [ ] animation
+- [ ] carrying entity
+  - [x] implemented
+  - [ ] size needs to be per game/player model
+  - [ ] voxelibre, use its drop node
 
-- [ ] this is so broken!!
+- [ ] (may have been fixed) this is so broken!!
   - [ ] (which? aom furnace? things that do not want to be placed?) picking up some node types breaks placing (for sure something to do with core.item_place_node(), and the node maybe not being placeable by normal means)
   - [x] (node checking is bad, forget it) voxelibre. because the placed node is different than the held one. the node check fails.
   - [x] #COMPAT age of mending; chests need to use swap_node() instead, as to not drop/dupe the chest's contents
 
-- [ ] issue with placement
+- [ ] (may have been fixed) issue with placement
   - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata
   - [ ] save the node that was previously there, undo placement if error happens
   - [x] #FIXME someone with putdowninv is broken causing multiple to be placeable
@@ -63,6 +69,8 @@ note: function place_node() seems to be broken, use item_place_node()
 
 ## DONE:
 
+- [x] seems like I did some wonky stuff with, with putDownInv()
+  - [x] should pointed_thing be the same for under and above? I think once the node gets placed, both above and under should eqaul or just use a new variable with that new value
 - [x] #BUG placing down on build_to nodes causes data loss.. why?
   - just needed to make sure that the data was being set on the actual pos
 - [x] indicator

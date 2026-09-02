@@ -30,7 +30,7 @@ local blacklist = {
 ---@field inv table
 ---@field node table
 ---@field pressed_button boolean
----@field node_timer table
+---@field node_timer number
 ---@field held boolean
 I_have_hands.Player_data = {}
 
@@ -68,10 +68,10 @@ local function isBlacklisted(pos)
     -- if utils.StringContains(core.get_node(pos).name, v) then
     --   return true
     -- end
-    local b_node = utils.Split(v,":")
+    local b_node = utils.Split(v, ":")
     local node_name = core.get_node(pos).name
-    if string.find(node_name,b_node[1]) or b_node[1] == "any" then
-      if string.find(node_name,b_node[2]) then
+    if string.find(node_name, b_node[1]) or b_node[1] == "any" then
+      if string.find(node_name, b_node[2]) then
         return true
       end
     end
@@ -167,7 +167,7 @@ function I_have_hands.carry_entity(pos, p_ref, p_data, pickup)
     -- held:set_properties({ wield_item = p_data.node.name })
     -- held:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
     held:set_properties({ visual_size = { x = 0.04, y = 0.04, z = 0.04 } })
-    held:set_attach(p_ref, "", vector.new(0, 1, 0.5), vector.new(0, 0, 0),true)
+    held:set_attach(p_ref, "", vector.new(0, 1, 0.5), vector.new(0, 0, 0), true)
     p_data.held = true
   else
     for _, obj in pairs(p_ref:get_children()) do
@@ -210,15 +210,18 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   end
 
   --- check for protection
-  if checkProtection(pos,p_name) then
+  if checkProtection(pos, p_name) then
     return
   end
 
   -- local node_def = core.registered_nodes[node.name]
   p_data.node = node
   p_data.inv = meta:to_table()
-
-  p_data.node_timer = core.get_node_timer(pos):get_timeout()
+  local timer = core.get_node_timer(pos):get_timeout()
+  if timer < 0 then
+    timer = 1.0
+  end
+  p_data.node_timer = timer
   p_data.held = true
 
   local node_def = core.registered_nodes[node.name]
@@ -232,7 +235,7 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
     core.remove_node(pos)
   end
 
-  I_have_hands.carry_entity(pos, core.get_player_by_name(p_name), p_data,true)
+  I_have_hands.carry_entity(pos, core.get_player_by_name(p_name), p_data, true)
 
   -- core.set_node(pos,{ name = "air", param1 = p_data.node.param1, param2 = p_data.node.param2 })
   Data.save_data()
@@ -278,7 +281,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   -- p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
 
   --- check for protection
-  if checkProtection(pointed_thing.above,p_name) then
+  if checkProtection(pointed_thing.above, p_name) then
     return
   end
 
@@ -294,7 +297,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     meta:from_table(p_data.inv)
     ---NOTE(COMPAT): voxelibre/ furnace drops xp on brake. so set it to zero on place.
     if meta:get_float("xp") ~= "" then
-      meta:set_float("xp",0)
+      meta:set_float("xp", 0)
     end
   end
 
@@ -317,6 +320,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
       local node_timer = core.get_node_timer(placed_pos)
       if node_timer:is_started() == false then
+        core.log("starting node timer..")
         node_timer:start(p_data.node_timer)
         -- node_timer:start(p_data.node_timer:get_timeout())
       end
@@ -438,6 +442,17 @@ local function carryableIdicator(p, pos)
   end
 end
 
+---NOTE(COMPAT): allseer
+if core.get_modpath("allseer") and allseer then
+  allseer.extra[mod_name] = function(raycast_result)
+    if raycast_result.type == "object" then
+      return ""
+    end
+    local node_timer = core.get_node_timer(raycast_result.under)
+    return core.colorize("#956eb5","node timer: ")..node_timer:get_timeout()
+  end
+end
+
 local function castTheRay(player, reach)
   -- start at player eye_height, end at raycast
   local p_dir = player:get_look_dir()
@@ -547,7 +562,7 @@ core.register_globalstep(function(dtime)
 
     ---make sure the player has the carry entity when they join
     if p_data.node ~= nil and p_data.held == nil then
-      I_have_hands.carry_entity(player:get_pos(),player,p_data,true)
+      I_have_hands.carry_entity(player:get_pos(), player, p_data, true)
     end
 
     --- for picking up the player's reach is shorter
@@ -1011,14 +1026,14 @@ end
 --         obj:get_luaentity().initial_pos = vector.to_string(obj:get_pos())
 
 --         --NOTE(COMPAT): this takes care of voxelibre chests
-        -- if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
-        --   obj:set_properties({ wield_item = "mcl_chests:chest" })
-        --   -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
-        --   -- if drawtype == "mesh" then
-        --   --   obj:set_properties({ wield_item = "mcl_chests:chest" })
-        --   -- end
-        --   -- obj:set_properties({ wield_item = "mcl_chests:"..name })
-        -- end
+-- if utils.StringContains(core.registered_nodes[core.get_node(pointed_thing.under).name].name, "mcl_chests") then
+--   obj:set_properties({ wield_item = "mcl_chests:chest" })
+--   -- local drawtype = core.registered_nodes[core.get_node(pointed_thing.under).name].drawtype
+--   -- if drawtype == "mesh" then
+--   --   obj:set_properties({ wield_item = "mcl_chests:chest" })
+--   -- end
+--   -- obj:set_properties({ wield_item = "mcl_chests:"..name })
+-- end
 
 --         -- core.debug(core.colorize("yellow",dump(core.registered_nodes[core.get_node(pointed_thing.under).name])))
 --         -- core.debug(core.colorize("blue", "all: \n" .. dump(meta:to_table())))

@@ -6,6 +6,7 @@
   - [ ] adjusting hud element
   - [ ] add nodes to blacklist
   - [ ] settings; allow_all
+
 - [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (mayeb not) prevent slot from being filled.
@@ -31,11 +32,7 @@
 
 ## DOING:
 
-note: function place_node() seems to be broken, use item_place_node()
-
-- [ ] #BUG nodetimer issues
-  - [ ] not the correct speed
-  - [ ] does not presist on world start
+**note**: function place_node() seems to be broken, use item_place_node()
 
 - [ ] carrying entity
   - [x] implemented
@@ -43,9 +40,15 @@ note: function place_node() seems to be broken, use item_place_node()
   - [ ] voxelibre, use its drop node
 
 - [ ] #BUG SAVING/LOADING; there may be an issue if the inv has USERDATA
+  - need to take into account that inv may have userdata.
 
 ## DONE:
 
+- [x] #BUG (not sure what I changed, but seems to be working now) nodetimer issues
+  - it just fails to start up again on a restart
+  - [x] Does not seem to be the correct speed
+  - [x] does not presist on world start
+  - this is a big issue
 - [x] voxelibre chests need to make sure they update after being placed (visual reasons)
 - [x] (may have been fixed) issue with placement
   - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata

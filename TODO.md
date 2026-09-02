@@ -34,12 +34,13 @@
 
 note: function place_node() seems to be broken, use item_place_node()
 
-- [x] #BUG leaving/exiting twice in a row will not save what the player is holding
-  - [x] save data on carry
+- [ ] #BUG nodetimer issues
+  - [ ] not the correct speed
+  - [ ] does not presist on world start
 
 - [ ] blacklist
   - [ ] shulkers
-  - [ ] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues
+  - [x] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues
   - [ ] or anything that has add_item() as its break function?
 
 - [ ] carrying entity
@@ -58,8 +59,7 @@ note: function place_node() seems to be broken, use item_place_node()
   - [x] #FIXME someone with putdowninv is broken causing multiple to be placeable
   - [x] #FIXME pipeworks. seem to be able to pickup pipes; is this normal or did it break while trying to place a inv node there.
 
-- [ ] #IMPORTANT protection, need to handle that
-- [ ] voxelibre chests need to make sure they update after being placed (visual reasons)
+- [x] voxelibre chests need to make sure they update after being placed (visual reasons)
 
 - [ ] check this!
   - [ ] putDownInv, make sure placed node matches before setting its meta
@@ -69,6 +69,9 @@ note: function place_node() seems to be broken, use item_place_node()
 
 ## DONE:
 
+- [x] #IMPORTANT protection, need to handle that
+- [x] #BUG leaving/exiting twice in a row will not save what the player is holding
+  - [x] save data on carry
 - [x] seems like I did some wonky stuff with, with putDownInv()
   - [x] should pointed_thing be the same for under and above? I think once the node gets placed, both above and under should eqaul or just use a new variable with that new value
 - [x] #BUG placing down on build_to nodes causes data loss.. why?

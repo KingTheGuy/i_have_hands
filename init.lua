@@ -13,8 +13,11 @@ local RayDistance = 2.2;                                --- best for this to be 
 local hand_range = core.registered_items[""].range or 4 --- is 4 the default engine hand reach?
 
 --invs to block
--- local blacklist = { "furnace", "shulker" } --if the name contains any of
-local blacklist = { "shulker", "bedrock" } --if the name contains any of
+local blacklist = {
+  "mcl_chests:shulker_box",
+  "mcl_core:bedrock",
+  "mcl_portals:end_portal_frame"
+} --if the name contains any of
 
 ---@class holder
 ---@field inv table
@@ -48,6 +51,44 @@ local to_animate = {}
 local function getPlayerData(player_name)
   I_have_hands.Player_data[player_name] = I_have_hands.Player_data[player_name] or {}
   return I_have_hands.Player_data[player_name]
+end
+
+local function isBlacklisted(pos)
+  for _, v in ipairs(blacklist) do
+    -- if core.get_node(pos).name == v then
+    --   return true
+    -- end
+    -- if utils.StringContains(core.get_node(pos).name, v) then
+    --   return true
+    -- end
+    local b_node = utils.Split(v,":")
+    local node_name = core.get_node(pos).name
+    if string.find(node_name,b_node[1]) then
+      if string.find(node_name,b_node[2]) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+---@param pos table
+---@param player_name string
+---@return boolean
+local function checkProtection(pos, player_name)
+  local protected = core.is_protected(pos, player_name)
+  local owner = core.get_meta(pos):get_string("owner")
+  if owner ~= "" then
+    if owner ~= player_name then
+      core.chat_send_player(player_name, core.colorize("pink", "You are not the owner."))
+      return true
+    end
+  end
+  if protected then
+    core.chat_send_player(player_name, core.colorize("pink", "This is protected"))
+    return true
+  end
+  return false
 end
 
 local function runCompat(pos)
@@ -161,6 +202,11 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
     end
   end
 
+  --- check for protection
+  if checkProtection(pos,p_name) then
+    return
+  end
+
   -- local node_def = core.registered_nodes[node.name]
   p_data.node = node
   p_data.inv = meta:to_table()
@@ -224,6 +270,11 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   --NOTE: the rotation
   -- p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
 
+  --- check for protection
+  if checkProtection(pointed_thing.above,p_name) then
+    return
+  end
+
   if p_data.node == nil then
     return
   end
@@ -281,14 +332,14 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
   Data.save_data()
 end
 
-core.register_on_leaveplayer(function(player_ref, timed_out)
-  local p_name = player_ref:get_player_name()
-  local p_data = getPlayerData(p_name)
-  local p_pos = player_ref:get_pos()
-  if p_data.inv ~= nil then
-    I_have_hands.putDownInv(p_name, p_pos)
-  end
-end)
+-- core.register_on_leaveplayer(function(player_ref, timed_out)
+--   local p_name = player_ref:get_player_name()
+--   local p_data = getPlayerData(p_name)
+--   local p_pos = player_ref:get_pos()
+--   if p_data.inv ~= nil then
+--     I_have_hands.putDownInv(p_name, p_pos)
+--   end
+-- end)
 
 core.register_on_dieplayer(function(player_ref, reason)
   local p_name = player_ref:get_player_name()
@@ -525,7 +576,7 @@ core.register_globalstep(function(dtime)
             at_least_one = at_least_one + 1
           end
         end
-        if p_data.inv == nil then
+        if p_data.inv == nil and isBlacklisted(pointed_thing.under) == false then
           if I_have_hands.allow_all or at_least_one > 0 then
             local player_name = player:get_player_name()
             carryableIdicator(player, pointed_thing.under)
@@ -539,6 +590,7 @@ core.register_globalstep(function(dtime)
         removePlayerHud(player)
       end
 
+      --- handle actaul pickup/putdown
       if p_control.place == true then
         if p_data.pressed_button ~= true then -- only just on the first click
           p_data.pressed_button = true
@@ -560,7 +612,9 @@ core.register_globalstep(function(dtime)
               if pointed_thing.under then
                 -- core.log("player data: " .. dump(p_data))
                 if p_control.sneak == true then -- must be sneaking (as if to reach down for it)
-                  I_have_hands.pickupInv(p_name, pointed_thing)
+                  if isBlacklisted(pointed_thing.under) == false then
+                    I_have_hands.pickupInv(p_name, pointed_thing)
+                  end
                 end
               end
             else
@@ -818,26 +872,6 @@ local function animatePlace()
   end
 end
 
----@param pos table
----@param user table
----@return boolean
-local function checkProtection(pos, user)
-  local protected = core.is_protected(pos, user:get_player_name())
-  local owner = core.get_meta(pos):get_string("owner")
-  local player_name = user:get_player_name()
-  if owner ~= "" then
-    if owner ~= player_name then
-      core.chat_send_player(player_name, core.colorize("pink", "You are not the owner."))
-      return true
-    end
-  end
-  if protected then
-    core.chat_send_player(player_name, core.colorize("pink", "This is protected"))
-    return true
-  end
-  return false
-end
-
 local function isInventory(meta)
   if I_have_hands.allow_all == true then
     return true
@@ -848,15 +882,6 @@ local function isInventory(meta)
     return false
   end
   return true
-end
-
-local function isBlacklisted(pos)
-  for _, v in ipairs(blacklist) do
-    if utils.StringContains(core.get_node(pos).name, v) then
-      return true
-    end
-  end
-  return false
 end
 
 local function find_empty_position(pos, radius)

@@ -14,10 +14,16 @@ local hand_range = core.registered_items[""].range or 4 --- is 4 the default eng
 
 --invs to block
 local blacklist = {
+  --voxelibre
   "mcl_chests:shulker_box",
   "mcl_core:bedrock",
   "mcl_portals:end_portal_frame",
-  "mcl_portals:portal"
+  "mcl_portals:portal",
+  "mcl_flowers:_top",
+  "mcl_beds:bed",
+  "any:_door",
+  --age of mending
+  "aom_cooking:_top",
 } --if the name contains any of
 
 ---@class holder
@@ -64,7 +70,7 @@ local function isBlacklisted(pos)
     -- end
     local b_node = utils.Split(v,":")
     local node_name = core.get_node(pos).name
-    if string.find(node_name,b_node[1]) then
+    if string.find(node_name,b_node[1]) or b_node[1] == "any" then
       if string.find(node_name,b_node[2]) then
         return true
       end
@@ -212,7 +218,7 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   p_data.node = node
   p_data.inv = meta:to_table()
 
-  p_data.node_timer = core.get_node_timer(pos)
+  p_data.node_timer = core.get_node_timer(pos):get_timeout()
   p_data.held = true
 
   local node_def = core.registered_nodes[node.name]
@@ -311,7 +317,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
       local node_timer = core.get_node_timer(placed_pos)
       if node_timer:is_started() == false then
-        node_timer:set(p_data.node_timer:get_timeout(), 0)
+        node_timer:start(p_data.node_timer)
         -- node_timer:start(p_data.node_timer:get_timeout())
       end
     end
@@ -583,6 +589,8 @@ core.register_globalstep(function(dtime)
             carryableIdicator(player, pointed_thing.under)
             local p_hud = getPlayerFromPlayerHuds(player_name)
             p_hud.hud_delay = p_hud.hud_delay - 1
+          else
+            removePlayerHud(player)
           end
         else
           removePlayerHud(player)

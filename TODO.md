@@ -2,7 +2,10 @@
 
 ## BACKLOG:
 
-- [ ] settings menu, for adjusting hud element
+- [ ] settings menu;
+  - [ ] adjusting hud element
+  - [ ] add nodes to blacklist
+  - [ ] settings; allow_all
 - [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (mayeb not) prevent slot from being filled.
@@ -23,12 +26,8 @@
 
 - [ ] add dust particle, to play right when the chest angles back down.
 - [ ] prevent switching hotbar slot
-- [ ] somehow let the player know if a mod is interfering with this mod or just say not its not compatible
 - [ ] better sound effects
 - [ ] rewrite description. carry nodes & blocks that have an inventory without breaking them.
-- [ ] #BUG crashes sometimes when a player spams picking up/down
-- [ ] #BUG (can't be reset till the player respawns) reset the arm on death.. or whenever the chest is dropped (same logic)
-- [ ] (NOPE.. there is no need for that, and it breaks things) add support for shulkers
 
 ## DOING:
 
@@ -43,27 +42,20 @@ note: function place_node() seems to be broken, use item_place_node()
   - [ ] size needs to be per game/player model
   - [ ] voxelibre, use its drop node
 
-- [ ] (may have been fixed) this is so broken!!
-  - [ ] (which? aom furnace? things that do not want to be placed?) picking up some node types breaks placing (for sure something to do with core.item_place_node(), and the node maybe not being placeable by normal means)
-  - [x] (node checking is bad, forget it) voxelibre. because the placed node is different than the held one. the node check fails.
-  - [x] #COMPAT age of mending; chests need to use swap_node() instead, as to not drop/dupe the chest's contents
-
-- [ ] (may have been fixed) issue with placement
-  - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata
-  - [ ] save the node that was previously there, undo placement if error happens
-  - [x] #FIXME someone with putdowninv is broken causing multiple to be placeable
-  - [x] #FIXME pipeworks. seem to be able to pickup pipes; is this normal or did it break while trying to place a inv node there.
-
-- [x] voxelibre chests need to make sure they update after being placed (visual reasons)
-
-- [ ] check this!
-  - [ ] putDownInv, make sure placed node matches before setting its meta
-  - [ ] putDownInv, make copy of previus node revert to it if prev message applies
-
-- [ ] SAVING/LOADING; there may be an issue if the inv has USERDATA
+- [ ] #BUG SAVING/LOADING; there may be an issue if the inv has USERDATA
 
 ## DONE:
 
+- [x] voxelibre chests need to make sure they update after being placed (visual reasons)
+- [x] (may have been fixed) issue with placement
+  - p_data.inv does not seem to be clearing and its causing the player placed/interacted thing take the metadata
+  - [x] save the node that was previously there, undo placement if error happens
+  - [x] #FIXME someone with putdowninv is broken causing multiple to be placeable
+  - [x] #FIXME pipeworks. seem to be able to pickup pipes; is this normal or did it break while trying to place a inv node there.
+- [x] (may have been fixed) this is so broken!!
+  - [x] (which? aom furnace? things that do not want to be placed?) picking up some node types breaks placing (for sure something to do with core.item_place_node(), and the node maybe not being placeable by normal means)
+  - [x] (node checking is bad, forget it) voxelibre. because the placed node is different than the held one. the node check fails.
+  - [x] #COMPAT age of mending; chests need to use swap_node() instead, as to not drop/dupe the chest's contents
 - [x] blacklist
   - [x] shulkers
   - [x] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues

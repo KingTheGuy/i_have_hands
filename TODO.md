@@ -38,11 +38,6 @@ note: function place_node() seems to be broken, use item_place_node()
   - [ ] not the correct speed
   - [ ] does not presist on world start
 
-- [ ] blacklist
-  - [ ] shulkers
-  - [x] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues
-  - [ ] or anything that has add_item() as its break function?
-
 - [ ] carrying entity
   - [x] implemented
   - [ ] size needs to be per game/player model
@@ -69,6 +64,10 @@ note: function place_node() seems to be broken, use item_place_node()
 
 ## DONE:
 
+- [x] blacklist
+  - [x] shulkers
+  - [x] (just set xp to nothing) furnace, because it drops xp on pickup... could cause dupe issues
+  - [ ] or anything that has add_item() as its break function?
 - [x] #IMPORTANT protection, need to handle that
 - [x] #BUG leaving/exiting twice in a row will not save what the player is holding
   - [x] save data on carry

@@ -16,7 +16,8 @@ local hand_range = core.registered_items[""].range or 4 --- is 4 the default eng
 local blacklist = {
   "mcl_chests:shulker_box",
   "mcl_core:bedrock",
-  "mcl_portals:end_portal_frame"
+  "mcl_portals:end_portal_frame",
+  "mcl_portals:portal"
 } --if the name contains any of
 
 ---@class holder
@@ -28,7 +29,7 @@ local blacklist = {
 I_have_hands.Player_data = {}
 
 dofile(mod_path .. "/utils.lua")
-dofile(mod_path .. "/menu.lua")
+-- dofile(mod_path .. "/menu.lua")
 dofile(mod_path .. "/data.lua")
 dofile(mod_path .. "/commands.lua")
 

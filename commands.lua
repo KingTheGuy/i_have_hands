@@ -39,11 +39,11 @@ core.register_chatcommand("ihh", {
       msg = msg .. "commands are: help, allow_all"
     elseif fields[1] == "allow_all" then
       if fields[2] == nil then
-        Allow_all = not Allow_all
+        I_have_hands.allow_all = not I_have_hands.allow_all
       else
-        Allow_all = fields[2]
+        I_have_hands.allow_all = fields[2]
       end
-      if Allow_all == true then
+      if I_have_hands.allow_all == true then
         msg = msg .. "You can pickup just about every block/node"
       else
         msg = msg .. "Can only pickup most blocks/nodes that have an inventory"

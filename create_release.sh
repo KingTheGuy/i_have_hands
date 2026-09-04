@@ -20,4 +20,4 @@
 dir_name=$(basename $(pwd))_$1
 echo $dir_name
 
-zip $dir_name.zip CHANGELOG.md LICENSE README.md init.lua menu.lua mod.conf models/* sounds/* textures/* utils.lua
+zip $dir_name.zip CHANGELOG.md LICENSE README.md init.lua commands.lua data.lua mod.conf models/* sounds/* textures/* utils.lua

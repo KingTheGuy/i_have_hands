@@ -166,8 +166,19 @@ function I_have_hands.carry_entity(pos, p_ref, p_data, pickup)
     })
     -- held:set_properties({ wield_item = p_data.node.name })
     -- held:set_properties({ visual_size = { x = 0.65, y = 0.65, z = 0.65 } })
-    held:set_properties({ visual_size = { x = 0.04, y = 0.04, z = 0.04 } })
-    held:set_attach(p_ref, "", vector.new(0, 1, 0.5), vector.new(0, 0, 0), true)
+
+    ---carry entity size and adjust bone to look like holding
+    if core.get_modpath("core_player") and core_player then
+      held:set_properties({ visual_size = { x = 0.04, y = 0.04, z = 0.04 } })
+      held:set_attach(p_ref, "", vector.new(0, 1, 0.5), vector.new(0, 0, 0), true)
+    else
+      held:set_properties({ visual_size = { x = 0.35, y = 0.35, z = 0.35 } })
+      held:set_attach(p_ref, "Body", vector.new(0, 4, -3.5), vector.new(0, 0, 0), true)
+      p_ref:set_bone_override("Arm_Right",
+        { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
+      p_ref:set_bone_override("Arm_Left",
+        { rotation = { absolute = false, interpolation = 0, vec = { x = math.rad(45), y = 0, z = 0 } } })
+    end
     p_data.held = true
   else
     for _, obj in pairs(p_ref:get_children()) do
@@ -175,6 +186,15 @@ function I_have_hands.carry_entity(pos, p_ref, p_data, pickup)
       if obj_name == "i_have_hands:held" then
         obj:remove()
       end
+    end
+
+    ---reset arm bones
+    if core.get_modpath("core_player") and core_player then
+    else
+      p_ref:set_bone_override("Arm_Right",
+        { rotation = { absolute = false, interpolation = 0, vec = { x = 0, y = 0, z = 0 } } })
+      p_ref:set_bone_override("Arm_Left",
+        { rotation = { absolute = false, interpolation = 0, vec = { x = 0, y = 0, z = 0 } } })
     end
   end
   -- local ghost = core.add_entity(pos, "i_have_hands:ghost")
@@ -185,7 +205,7 @@ end
 
 ---comment
 ---@param p_name string
----@param pos table
+---@param pointed_thing table
 function I_have_hands.pickupInv(p_name, pointed_thing)
   local pos = pointed_thing.under
   local meta = core.get_meta(pos)
@@ -194,6 +214,8 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
   -- core.log("interacted node: " .. core.colorize("#932222", dump(node)))
   local inv = meta:get_inventory()
   local at_least_one = 0
+
+  ---this is where the option to allow pickup up normal nodes should be done
   if I_have_hands.allow_all == false then
     if inv ~= nil then
       -- core.log(core.colorize("#954823", "node: " .. node.name))
@@ -203,7 +225,6 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
       end
     end
 
-    ---FIXME: this is where the option to allow pickup up normal nodes should be done
     if at_least_one <= 0 then
       return
     end
@@ -320,7 +341,7 @@ function I_have_hands.putDownInv(p_name, pointed_thing)
     if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
       local node_timer = core.get_node_timer(placed_pos)
       if node_timer:is_started() == false then
-        core.log("starting node timer..")
+        -- core.log("starting node timer..")
         node_timer:start(p_data.node_timer)
         -- node_timer:start(p_data.node_timer:get_timeout())
       end
@@ -449,7 +470,7 @@ if core.get_modpath("allseer") and allseer then
       return ""
     end
     local node_timer = core.get_node_timer(raycast_result.under)
-    return core.colorize("#956eb5","node timer: ")..node_timer:get_timeout()
+    return core.colorize("#956eb5", "node timer: ") .. node_timer:get_timeout()
   end
 end
 

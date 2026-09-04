@@ -1,5 +1,23 @@
 # CHANGELOG
 
+### 1.11.1:
+
+changelog:
+
+- removed "starting node timer.." message
+
+### 1.11.0:
+
+changelog:
+
+- code refactor
+- removed placement animation (may return once we get proper client-side mods)
+- now shows the correct voxelibre chest when carried
+
+bugfix:
+
+- should crash 80% less.
+
 ### 1.10.2:
 
 changelog:
@@ -9,7 +27,6 @@ changelog:
 bugfix:
 
 - (voxelibre/mineclonia) picking up an armor_stand would result in amor duplication
-
 
 ### 1.10.1:
 
@@ -28,7 +45,6 @@ bugfix:
 - updated some deprecated stuff
 - added a CHANGELOG file
 - updated demo gif and banner images
-
 
 ### 1.0.9:
 

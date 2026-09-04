@@ -7,6 +7,14 @@
   - [ ] add nodes to blacklist
   - [ ] settings; allow_all
 
+- [ ] #IDEA while carrying; if open another inv/conatiner show the container and held inv.
+  - could make organizing easier.
+  - say you have a messy chest and just want to pick it up and go
+    around dumping things from that chest into others without having to
+    open/close and run between 2 chest constantly
+  - [ ] get the position of what would be the player's inv and replace it with the carried inv.
+  - [ ] may need to move the inv to be a detached inv while being held.
+
 - [ ] make them throw-able
 - [ ] pick up mobs?
 - [ ] (mayeb not) prevent slot from being filled.
@@ -34,16 +42,15 @@
 
 **note**: function place_node() seems to be broken, use item_place_node()
 
-- [ ] carrying entity
-  - [x] implemented
-  - [ ] size needs to be per game/player model
-  - [ ] voxelibre, use its drop node
-
 - [ ] #BUG SAVING/LOADING; there may be an issue if the inv has USERDATA
   - need to take into account that inv may have userdata.
 
 ## DONE:
 
+- [x] carrying entity
+  - [x] implemented
+  - [x] size needs to be per game/player model
+  - [x] voxelibre, use its drop node
 - [x] #BUG (not sure what I changed, but seems to be working now) nodetimer issues
   - it just fails to start up again on a restart
   - [x] Does not seem to be the correct speed

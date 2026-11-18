@@ -269,99 +269,221 @@ function I_have_hands.pickupInv(p_name, pointed_thing)
 end
 
 function I_have_hands.putDownInv(p_name, pointed_thing)
-  local p_data = getPlayerData(p_name)
-  local p_ref = core.get_player_by_name(p_name)
+    local p_data = getPlayerData(p_name)
+    local p_ref = core.get_player_by_name(p_name)
 
-  --FIXME: make sure spot is empty
-  ---make sure node can be placed down
-  local node_in_pos = core.get_node(pointed_thing.above)
-  local node_in_pos_def = core.registered_nodes[node_in_pos.name]
-  if node_in_pos_def.buildable_to then
-    ---FIXME: why is the new_drop_pos not gettng the correct node??
-  elseif node_in_pos.name ~= "air" then
-    ---lets try the spot above, specificly when above & under are the same
-    --- mainly for when the player is forced to drop the inv
-    local new_drop_pos = pointed_thing.under
-    if pointed_thing.above == pointed_thing.under then
-      new_drop_pos = { pointed_thing.above.x, pointed_thing.above.y + 1, pointed_thing.above.z }
-      -- core.log("drop pos: " .. dump(new_drop_pos))
-      node_in_pos = core.get_node(new_drop_pos)
-      ---set pointed_thing again
-      pointed_thing = { type = "node", under = new_drop_pos, above = new_drop_pos }
-      node_in_pos_def = core.registered_nodes[node_in_pos.name]
+    if not p_data.node or not p_ref then
+        return
     end
-    if node_in_pos_def.buildable_to then
-      --- ok good to go
-    elseif node_in_pos.name ~= "air" then
-      return
+
+    local function valid_pos(pos)
+        local function valid_coord(n)
+            return type(n) == "number"
+                and n == n
+                and math.abs(n) < math.huge
+        end
+
+        return type(pos) == "table"
+            and valid_coord(pos.x)
+            and valid_coord(pos.y)
+            and valid_coord(pos.z)
     end
-    -- core.log("not air")
-  end
 
-  --NOTE: the rotation
-  -- p_data.node.param2 = core.dir_to_fourdir(p_ref:get_look_dir())
+    local function can_place_at(pos)
+        local node = core.get_node_or_nil(pos)
+        if not node then
+            return false
+        end
 
-  --- check for protection
-  if checkProtection(pointed_thing.above, p_name) then
-    return
-  end
-
-  if p_data.node == nil then
-    return
-  end
-  local stack, placed_pos = core.item_place_node(ItemStack(p_data.node.name), p_ref, pointed_thing)
-
-  -- core.set_node(pos, { name = p_data.node.name, param1 = p_data.node.param1, param2 = p_data.node.param2 })
-
-  local meta = core.get_meta(placed_pos)
-  if meta ~= nil then
-    meta:from_table(p_data.inv)
-    ---NOTE(COMPAT): voxelibre/ furnace drops xp on brake. so set it to zero on place.
-    if meta:get_float("xp") ~= "" then
-      meta:set_float("xp", 0)
+        local def = core.registered_nodes[node.name]
+        return node.name == "air" or (def and def.buildable_to == true)
     end
-  end
 
-  --- make sure its been placed
-  -- local check_node = core.get_node(pointed_thing.above)
-  -- if check_node.name ~= p_data.node.name then
-  --   core.log("node name: " .. check_node.name)
-  --   core.log("something went wrong")
-  --   core.log("pointed_thing: " .. dump(pointed_thing))
-  --   core.log("item_place_node: " .. dump(placed_pos))
-  --   core.log("is player nil? " .. dump(p_ref))
-  --   Data.save_data()
-  --   return
-  -- end
+    -- If placement fails, drop the chest and its saved inventory at the player.
+    local function drop_carried_node()
+        local drop_pos = p_ref:get_pos()
 
-  runCompat(placed_pos)
+        if not valid_pos(drop_pos) then
+            if pointed_thing and valid_pos(pointed_thing.above) then
+                drop_pos = pointed_thing.above
+            else
+                return false
+            end
+        end
 
-  local node_def = core.registered_nodes[p_data.node.name]
-  if node_def ~= nil then
-    if node_def.on_timer ~= nil and p_data.node_timer ~= nil then
-      local node_timer = core.get_node_timer(placed_pos)
-      if node_timer:is_started() == false then
-        -- core.log("starting node timer..")
-        node_timer:start(p_data.node_timer)
-        -- node_timer:start(p_data.node_timer:get_timeout())
-      end
+        -- Use a fresh vector with named coordinates for core.add_item.
+        drop_pos = {
+            x = drop_pos.x,
+            y = drop_pos.y,
+            z = drop_pos.z,
+        }
+
+        -- Use the node's registered drop, which may differ from its node name.
+        local chest_drops = core.get_node_drops(p_data.node, "")
+        if not chest_drops or #chest_drops == 0 then
+            chest_drops = { p_data.node.name }
+        end
+
+        local dropped_chest = false
+        for _, item in ipairs(chest_drops) do
+            local stack = ItemStack(item)
+            if not stack:is_empty() and core.add_item(drop_pos, stack) then
+                dropped_chest = true
+            end
+        end
+
+        -- Last-resort fallback in case the registered drop could not be spawned.
+        if not dropped_chest then
+            local fallback_stack = ItemStack(p_data.node.name)
+            if not fallback_stack:is_empty()
+                    and core.add_item(drop_pos, fallback_stack) then
+                dropped_chest = true
+            end
+        end
+
+        -- Keep the carried data if even the chest itself could not be dropped.
+        if not dropped_chest then
+            return false
+        end
+
+        -- Drop every non-empty stack from the saved node inventory.
+        local saved_inventory = p_data.inv and p_data.inv.inventory or {}
+        for _, list in pairs(saved_inventory) do
+            for _, item in pairs(list) do
+                local stack = ItemStack(item)
+                if not stack:is_empty() then
+                    core.add_item(drop_pos, stack)
+                end
+            end
+        end
+
+        I_have_hands.carry_entity(drop_pos, p_ref, p_data, false)
+        p_data.node = nil
+        p_data.node_timer = nil
+        p_data.inv = nil
+        p_data.held = false
+        Data.save_data()
+
+        return true
     end
-  end
 
+    if not pointed_thing
+            or pointed_thing.type ~= "node"
+            or not valid_pos(pointed_thing.under)
+            or not valid_pos(pointed_thing.above) then
+        drop_carried_node()
+        return
+    end
 
-  I_have_hands.carry_entity(placed_pos, p_ref, p_data, false)
+    local candidates = {}
+    local first_pos = vector.round(pointed_thing.above)
 
-  -- I_have_hands.spawn_ghost(pointed_thing.above,p_data)
+    if pointed_thing.under.x == pointed_thing.above.x
+            and pointed_thing.under.y == pointed_thing.above.y
+            and pointed_thing.under.z == pointed_thing.above.z then
+        -- Forced put-downs use the player's position for both fields.
+        -- Build a valid under/above pair and try that spot, then the one above it.
+        for offset = 0, 1 do
+            local pos = {
+                x = first_pos.x,
+                y = first_pos.y + offset,
+                z = first_pos.z,
+            }
 
-  ---FIXME: these may need to be canceled, so check for that
-  core.sound_play({ name = "i_have_hands_place_down_node" },
-    { pos = placed_pos, pitch = math.random(0.7, 1.2), gain = 1 },
-    true)
-  p_data.node = nil
-  p_data.node_timer = nil
-  p_data.inv = nil -- clear it
-  p_data.held = false
-  Data.save_data()
+            table.insert(candidates, {
+                pos = pos,
+                pointed_thing = {
+                    type = "node",
+                    under = { x = pos.x, y = pos.y - 1, z = pos.z },
+                    above = { x = pos.x, y = pos.y, z = pos.z },
+                },
+            })
+        end
+    else
+        -- Normal placement: try the raycast target, then the node above it.
+        table.insert(candidates, {
+            pos = first_pos,
+            pointed_thing = pointed_thing,
+        })
+
+        local upper_pos = {
+            x = first_pos.x,
+            y = first_pos.y + 1,
+            z = first_pos.z,
+        }
+        table.insert(candidates, {
+            pos = upper_pos,
+            pointed_thing = {
+                type = "node",
+                under = {
+                    x = first_pos.x,
+                    y = first_pos.y,
+                    z = first_pos.z,
+                },
+                above = upper_pos,
+            },
+        })
+    end
+
+    local placed_pos = nil
+
+    for _, candidate in ipairs(candidates) do
+        if can_place_at(candidate.pos)
+                and not checkProtection(candidate.pos, p_name) then
+            local stack, result_pos = core.item_place_node(
+                ItemStack(p_data.node.name),
+                p_ref,
+                candidate.pointed_thing
+            )
+
+            if stack and stack:is_empty() and valid_pos(result_pos) then
+                local placed_node = core.get_node_or_nil(result_pos)
+                if placed_node and placed_node.name ~= "air" then
+                    placed_pos = result_pos
+                    break
+                end
+            end
+        end
+    end
+
+    if not placed_pos then
+        drop_carried_node()
+        return
+    end
+
+    local meta = core.get_meta(placed_pos)
+    if meta then
+        meta:from_table(p_data.inv)
+
+        -- NOTE(COMPAT): reset furnace XP when placing.
+        if meta:get_float("xp") ~= "" then
+            meta:set_float("xp", 0)
+        end
+    end
+
+    runCompat(placed_pos)
+
+    local node_def = core.registered_nodes[p_data.node.name]
+    if node_def and node_def.on_timer and p_data.node_timer then
+        local node_timer = core.get_node_timer(placed_pos)
+        if not node_timer:is_started() then
+            node_timer:start(p_data.node_timer)
+        end
+    end
+
+    I_have_hands.carry_entity(placed_pos, p_ref, p_data, false)
+
+    core.sound_play(
+        { name = "i_have_hands_place_down_node" },
+        { pos = placed_pos, pitch = math.random(0.7, 1.2), gain = 1 },
+        true
+    )
+
+    p_data.node = nil
+    p_data.node_timer = nil
+    p_data.inv = nil
+    p_data.held = false
+    Data.save_data()
 end
 
 -- core.register_on_leaveplayer(function(player_ref, timed_out)
